@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "library-bg",
+      "description": "Modern library interior with natural light and study spaces",
+      "imageUrl": "https://picsum.photos/seed/library1/1920/1080",
+      "imageHint": "modern library"
+    },
+    {
+      "id": "admin-avatar",
+      "description": "Professional administrative staff member",
+      "imageUrl": "https://picsum.photos/seed/admin1/200/200",
+      "imageHint": "professional person"
+    }
+  ]
+}
