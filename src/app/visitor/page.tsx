@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from 'react';
@@ -7,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { VISIT_PURPOSES, MOCK_USERS, UserProfile, VisitRecord, Purpose } from '@/lib/types';
+import { VISIT_PURPOSES, UserProfile, VisitRecord, Purpose } from '@/lib/types';
+import { MOCK_USERS } from '@/lib/mock-data';
 import { Scan, Mail, CheckCircle2, ArrowLeft, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 export default function VisitorCheckIn() {
   const { toast } = useToast();
-  const [step, setStep] = useState<'identify' | 'purpose' | 'welcome'>('identify');
+  const [step, setStep] =渴望<'identify' | 'purpose' | 'welcome'>('identify');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [emailInput, setEmailInput] = useState('');
