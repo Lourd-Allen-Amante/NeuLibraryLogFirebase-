@@ -293,7 +293,8 @@ export default function AdminDashboard() {
       'jcesperanza@neu.edu.ph',
       'jcezperanza@neu.edu.ph',
       'jceperanza@neu.edu.ph',
-      'lourdallen.amante@neu.edu.ph'
+      'lourdallen.amante@neu.edu.ph',
+      'neulibrarian@neu.edu.ph'
     ];
     
     return superusers.includes(email);

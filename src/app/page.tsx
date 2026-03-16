@@ -39,7 +39,8 @@ export default function LandingPage() {
     'jcesperanza@neu.edu.ph',
     'jcezperanza@neu.edu.ph',
     'jceperanza@neu.edu.ph',
-    'lourdallen.amante@neu.edu.ph'
+    'lourdallen.amante@neu.edu.ph',
+    'neulibrarian@neu.edu.ph'
   ];
 
   // Specific Greeting for Authorized Admins
@@ -72,7 +73,6 @@ export default function LandingPage() {
       setEmail('');
       setPassword('');
     } catch (error: any) {
-      // Removed console.error to prevent Next.js error overlay
       let message = "Invalid email or password.";
       
       if (error.code === 'auth/invalid-credential') {
