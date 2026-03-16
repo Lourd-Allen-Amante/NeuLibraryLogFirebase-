@@ -1,31 +1,32 @@
+
 {
   "entities": {
     "Visitor": {
-      "title": "Visitor",
-      "description": "Represents an individual at NEU Library.",
+      "title": "Visitor Profile",
+      "description": "Standard user profile for library patrons.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
+        "id": { "type": "string", "description": "Firebase Auth UID" },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
-        "collegeOrOffice": { "type": "string" },
+        "collegeOrOffice": { "type": "string", "description": "Institutional affiliation" },
         "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff", "Guest"] },
-        "isBlocked": { "type": "boolean" },
+        "isBlocked": { "type": "boolean", "description": "Administrative lock status" },
         "role": { "type": "string", "enum": ["RegularUser", "Admin"] }
       },
-      "required": ["id", "name", "email", "collegeOrOffice", "visitorType", "isBlocked", "role"]
+      "required": ["id", "name", "email"]
     },
     "VisitorLog": {
-      "title": "VisitorLog",
-      "description": "A log entry for a library visit.",
+      "title": "Library Entry Log",
+      "description": "A secure, immutable record of a library visit.",
       "type": "object",
       "properties": {
         "visitorId": { "type": "string" },
         "visitorName": { "type": "string" },
         "visitorEmail": { "type": "string" },
-        "visitorType": { "type": "string" },
+        "visitorType": { "type": "string", "description": "Student or Employee classification" },
         "college": { "type": "string" },
-        "purpose": { "type": "string" },
+        "purpose": { "type": "string", "description": "Primary activity selected by user" },
         "entryDateTime": { "type": "string", "format": "date-time" }
       },
       "required": ["visitorId", "visitorName", "purpose", "entryDateTime"]
@@ -37,15 +38,15 @@
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/backend/entities/Visitor" },
-      "description": "User profile"
+      "description": "User profile document containing demographic and status data."
     },
     "/roles_admin/{userId}": {
       "schema": { "type": "object" },
-      "description": "Admin role marker"
+      "description": "Existence of a document here identifies a user with Administrative privileges."
     },
     "/visitorLogs/{logId}": {
       "schema": { "$ref": "#/backend/entities/VisitorLog" },
-      "description": "Visit history"
+      "description": "The primary audit trail for library visitation."
     }
   }
 }
