@@ -61,7 +61,7 @@ export default function LandingPage() {
 
     setIsLoggingIn(true);
     try {
-      // Use trim() to ensure no accidental spaces in email
+      // Use trim() and toLowerCase() for robustness
       await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       
       toast({
@@ -72,18 +72,17 @@ export default function LandingPage() {
       setEmail('');
       setPassword('');
     } catch (error: any) {
-      console.error("Firebase Auth Error:", error.code, error.message);
-      
+      // Removed console.error to prevent Next.js error overlay
       let message = "Invalid email or password.";
       
       if (error.code === 'auth/invalid-credential') {
-        message = "Incorrect credentials. Please verify your password and ensure 'Email/Password' is enabled in Firebase Console.";
+        message = "Access Denied: Please check your credentials. Ensure 'Email/Password' is enabled in Firebase and the user exists.";
       } else if (error.code === 'auth/user-not-found') {
-        message = "No account found with this email. Please check your spelling.";
+        message = "No account found with this email.";
       } else if (error.code === 'auth/wrong-password') {
-        message = "The password you entered is incorrect.";
+        message = "Incorrect password.";
       } else if (error.code === 'auth/too-many-requests') {
-        message = "Account temporarily locked due to many failed attempts. Try again in a few minutes.";
+        message = "Too many failed attempts. Please try again later.";
       }
       
       toast({
