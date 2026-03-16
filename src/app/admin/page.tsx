@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -29,7 +28,9 @@ import {
   FileDown,
   Calendar as CalendarIcon,
   Download,
-  CreditCard
+  CreditCard,
+  UserPlus,
+  ShieldX
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { format, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -69,8 +71,8 @@ import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summa
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
-import { deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, setDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -78,6 +80,7 @@ export default function AdminDashboard() {
   const { toast } = useToast();
   const db = useFirestore();
   const { user: authUser } = useUser();
+  const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('All');
   const [collegeFilter, setCollegeFilter] = useState('All');
@@ -90,15 +93,19 @@ export default function AdminDashboard() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
+  // Firestore Queries
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRef);
 
   const logsQuery = useMemoFirebase(() => collection(db, 'visitorLogs'), [db]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
-  const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
-  const adminAvatar = PlaceHolderImages.find(img => img.id === 'admin-avatar');
+  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
+  const { data: allUsers, isLoading: isUsersLoading } = useCollection(usersQuery);
 
+  const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
+
+  // Filtering Logic
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
     return logs.filter(log => {
@@ -135,52 +142,44 @@ export default function AdminDashboard() {
     return { total, countToday, topPurpose };
   }, [filteredLogs]);
 
-  const chartData = useMemo(() => {
-    if (!logs) return [];
-    const today = startOfDay(new Date());
-    return Array.from({ length: 7 }).map((_, i) => {
-      const date = subDays(today, 6 - i);
-      const count = logs.filter(l => startOfDay(parseISO(l.entryDateTime)).getTime() === date.getTime()).length;
-      return {
-        name: format(date, 'EEE'),
-        visitors: count
-      };
-    });
-  }, [logs]);
-
-  const generateAiSummary = async () => {
-    if (!filteredLogs.length) return;
-    setIsSummarizing(true);
-    try {
-      const result = await adminVisitorTrendSummaries({
-        periodDescription: `Filtered results from ${dateRange.from ? format(dateRange.from, 'PP') : 'start'} to ${dateRange.to ? format(dateRange.to, 'PP') : 'now'}`,
-        visitorEntries: filteredLogs.slice(0, 100).map(v => ({
-          timestamp: v.entryDateTime,
-          purposeOfVisit: v.purpose
-        }))
-      });
-      setAiSummary(result.summary);
-    } catch (error) {
-      toast({ title: "Analysis Failed", variant: "destructive" });
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
-  const handleExport = () => {
+  // Actions
+  const toggleBlockStatus = (userId: string, currentStatus: boolean) => {
+    const userRef = doc(db, 'users', userId);
+    updateDocumentNonBlocking(userRef, { isBlocked: !currentStatus });
     toast({
-      title: "Generating Report",
-      description: "Your PDF report is being prepared for download.",
+      title: !currentStatus ? "Visitor Blocked" : "Visitor Unblocked",
+      description: `The user status has been updated.`,
     });
   };
 
-  const handleDeleteLog = (id: string) => {
-    const docRef = doc(db, 'visitorLogs', id);
-    deleteDocumentNonBlocking(docRef);
-    toast({ title: "Log Entry Removed" });
+  const handleAddVisitor = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const newVisitor = {
+      name: formData.get('fullName') as string,
+      schoolId: formData.get('schoolId') as string,
+      email: formData.get('email') as string,
+      collegeOrOffice: formData.get('college') as string,
+      visitorType: formData.get('type') as string,
+      isBlocked: false,
+      role: 'RegularUser'
+    };
+
+    // Use a temp ID or actual auth creation if needed, here we just add to Firestore
+    const newDocRef = doc(collection(db, 'users'));
+    setDoc(newDocRef, { ...newVisitor, id: newDocRef.id });
+    
+    toast({ title: "Visitor Added Successfully" });
+    (e.target as HTMLFormElement).reset();
   };
 
-  if (isAdminLoading || isLogsLoading) return <div className="flex h-screen items-center justify-center bg-[#F1F5F8]"><Loader2 className="animate-spin h-10 w-10 text-[#264D73]" /></div>;
+  if (isAdminLoading || isLogsLoading || isUsersLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F1F5F8]">
+        <Loader2 className="animate-spin h-10 w-10 text-[#1B4332]" />
+      </div>
+    );
+  }
 
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph';
   const hasAccess = !!adminRole || isSuperUser;
@@ -189,336 +188,317 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-[#F1F5F8]">
         <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
-        <h1 className="text-3xl font-headline font-bold text-[#264D73]">Access Restricted</h1>
+        <h1 className="text-3xl font-headline font-bold text-[#1B4332]">Access Restricted</h1>
         <p className="text-muted-foreground mt-2 max-w-md">This area is for Library Personnel only.</p>
-        <Link href="/"><Button className="mt-8 bg-[#264D73] h-12 px-8">Return to Portal</Button></Link>
+        <Link href="/"><Button className="mt-8 bg-[#1B4332] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F5F8] flex font-body">
-      <aside className="w-72 bg-[#264D73] text-white hidden lg:flex flex-col border-r border-white/5">
-        <div className="p-8">
-          <div className="flex items-center gap-3 font-headline font-bold text-2xl mb-12">
-            {neuLogo?.imageUrl && (
-              <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1" />
-            )}
-            ScholarFlow
-          </div>
-          
-          <nav className="space-y-4">
-            <div className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">Management</div>
-            <Button variant="ghost" className="w-full justify-start text-white bg-white/10 font-bold h-12 rounded-xl">
-              <LayoutDashboard className="mr-3 h-5 w-5 text-[#36BBDB]" /> Overview
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-white/70 hover:bg-white/5 font-medium h-12 rounded-xl">
-              <ClipboardList className="mr-3 h-5 w-5" /> Visit History
-            </Button>
-            <Button variant="ghost" className="w-full justify-start text-white/70 hover:bg-white/5 font-medium h-12 rounded-xl">
-              <Users className="mr-3 h-5 w-5" /> User Access
-            </Button>
-          </nav>
-        </div>
-        
-        <div className="mt-auto p-8 border-t border-white/5 bg-black/10">
-          <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-[#36BBDB] bg-slate-200">
-               {adminAvatar?.imageUrl && (
-                 <Image src={adminAvatar.imageUrl} alt="Admin" fill className="object-cover" />
-               )}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold truncate">{authUser?.displayName}</p>
-              <p className="text-[10px] text-[#36BBDB] font-bold uppercase tracking-wider">Librarian</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-1 p-6 lg:p-10 overflow-auto">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+    <div className="min-h-screen bg-[#F0FDF4] flex flex-col font-body">
+      {/* Green Header - Matching Screenshot */}
+      <header className="bg-[#1B4332] text-white px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {neuLogo?.imageUrl && (
+            <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1" />
+          )}
           <div>
-            <h1 className="text-4xl font-headline font-bold text-[#264D73]">Library Dashboard</h1>
-            <p className="text-muted-foreground font-medium">Monitoring visitor patterns and institutional statistics</p>
+            <h1 className="text-lg font-bold tracking-tight">NEU Library</h1>
+            <p className="text-[10px] uppercase tracking-widest text-emerald-200/60 font-bold">Admin Dashboard</p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="border-[#264D73] text-[#264D73] hover:bg-[#264D73]/5" onClick={handleExport}>
-              <FileDown className="mr-2 h-4 w-4" /> Export Report
-            </Button>
-            <Link href="/">
-              <Button variant="ghost" className="text-muted-foreground">
-                <LogOut className="mr-2 h-4 w-4" /> Exit
-              </Button>
-            </Link>
-          </div>
-        </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <Card className="border-none shadow-md bg-white relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-               <Users className="h-16 w-16" />
-            </div>
-            <CardHeader className="pb-2">
-              <CardDescription className="font-bold text-[10px] uppercase tracking-[0.2em]">Filtered Volume</CardDescription>
-              <CardTitle className="text-4xl font-headline text-[#264D73]">{stats.total}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <TrendingUp className="h-3 w-3 text-emerald-500" /> Based on active filters
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-none shadow-md bg-[#264D73] text-white">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-blue-100 font-bold text-[10px] uppercase tracking-[0.2em]">Today's Entries</CardDescription>
-              <CardTitle className="text-4xl font-headline">{stats.countToday}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-blue-200">System Live Check-ins</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-md bg-white">
-            <CardHeader className="pb-2">
-              <CardDescription className="font-bold text-[10px] uppercase tracking-[0.2em]">Peak Purpose</CardDescription>
-              <CardTitle className="text-xl font-headline text-[#264D73] truncate">{stats.topPurpose}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge variant="outline" className="text-[#36BBDB] border-[#36BBDB]">Popular Trend</Badge>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-md bg-[#36BBDB] text-white">
-            <CardHeader className="pb-2">
-              <CardDescription className="text-blue-50 font-bold text-[10px] uppercase tracking-[0.2em]">System Status</CardDescription>
-              <CardTitle className="text-2xl font-headline flex items-center gap-2">
-                <CheckCircle className="h-6 w-6" /> Operational
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-blue-50">All terminal endpoints connected</p>
-            </CardContent>
-          </Card>
         </div>
 
-        <Card className="mb-10 border-none shadow-md bg-white">
-          <CardHeader className="border-b border-slate-50 pb-4">
-            <CardTitle className="text-lg font-headline font-bold flex items-center gap-2">
-              <Filter className="h-5 w-5 text-[#36BBDB]" /> Control Center
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <div className="space-y-2 lg:col-span-1">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Search Visitor</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Name, ID or College..." className="pl-10 h-11 border-slate-200 rounded-xl" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                </div>
-              </div>
+        <nav className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'overview' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
+            onClick={() => setActiveTab('overview')}
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" /> Overview
+          </Button>
+          <Button 
+            variant="ghost" 
+            className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'logs' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
+            onClick={() => setActiveTab('logs')}
+          >
+            <ClipboardList className="mr-2 h-4 w-4" /> Visitor Logs
+          </Button>
+          <Button 
+            variant="ghost" 
+            className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'manage' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
+            onClick={() => setActiveTab('manage')}
+          >
+            <Users className="mr-2 h-4 w-4" /> Manage Visitors
+          </Button>
+        </nav>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Date Range</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-11 justify-start text-left font-normal rounded-xl">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange.from ? format(dateRange.from, "PPP") : "Start"} - {dateRange.to ? format(dateRange.to, "PPP") : "End"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={dateRange.from}
-                      selected={{ from: dateRange.from, to: dateRange.to }}
-                      onSelect={(range: any) => setDateRange({ from: range?.from, to: range?.to })}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Purpose</Label>
-                <Select value={purposeFilter} onValueChange={setPurposeFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Reasons" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Reasons</SelectItem>
-                    <SelectItem value="Reading Books">Reading Books</SelectItem>
-                    <SelectItem value="Research in Thesis">Research in Thesis</SelectItem>
-                    <SelectItem value="Use of Computer">Use of Computer</SelectItem>
-                    <SelectItem value="Doing Assignments">Doing Assignments</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" className="bg-[#2D6A4F] border-none text-white hover:bg-[#40916C] h-9 text-xs font-bold">
+            <FileDown className="mr-2 h-4 w-4" /> Export PDF
+          </Button>
+          <Link href="/">
+            <Button variant="ghost" className="text-white hover:bg-white/10 h-9 text-xs font-bold">
+              Sign Out
+            </Button>
+          </Link>
+        </div>
+      </header>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">College</Label>
-                <Select value={collegeFilter} onValueChange={setCollegeFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Colleges" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Colleges</SelectItem>
-                    <SelectItem value="College of Engineering">Engineering</SelectItem>
-                    <SelectItem value="College of Arts and Sciences">Arts & Sciences</SelectItem>
-                    <SelectItem value="College of Education">Education</SelectItem>
-                    <SelectItem value="College of Computer Studies">Computer Studies</SelectItem>
-                    <SelectItem value="Administration">Administration</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Classification</Label>
-                <Select value={visitorTypeFilter} onValueChange={setVisitorTypeFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Any Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Classifications</SelectItem>
-                    <SelectItem value="Student">Students Only</SelectItem>
-                    <SelectItem value="Employee">Employees (Faculty/Staff)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+      <main className="flex-1 p-8">
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="border-emerald-100 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Filtered Volume</CardDescription>
+                  <CardTitle className="text-3xl font-headline text-[#1B4332]">{stats.total}</CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-xs text-muted-foreground">Active filter results</p></CardContent>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm bg-emerald-50">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Today's Entries</CardDescription>
+                  <CardTitle className="text-3xl font-headline text-[#1B4332]">{stats.countToday}</CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-xs text-emerald-600 font-medium">Live check-ins</p></CardContent>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Peak Activity</CardDescription>
+                  <CardTitle className="text-xl font-headline text-[#1B4332] truncate">{stats.topPurpose}</CardTitle>
+                </CardHeader>
+                <CardContent><Badge variant="outline" className="text-emerald-600 border-emerald-200">Main Trend</Badge></CardContent>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Security Status</CardDescription>
+                  <CardTitle className="text-xl font-headline text-[#1B4332] flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-emerald-500" /> Secure
+                  </CardTitle>
+                </CardHeader>
+                <CardContent><p className="text-xs text-muted-foreground">Terminal Link Stable</p></CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 space-y-10">
-            <Card className="border-none shadow-md bg-white overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="font-headline text-2xl text-[#264D73]">Visitation Logs</CardTitle>
-                  <CardDescription>Comprehensive ledger of library access</CardDescription>
-                </div>
-                <Badge variant="secondary" className="px-3 py-1 text-sm">{filteredLogs.length} Records</Badge>
-              </CardHeader>
-              <CardContent className="p-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <Card className="lg:col-span-2 border-emerald-100 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-[#1B4332]">7-Day Visitation Trends</CardTitle>
+                </CardHeader>
+                <CardContent className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart data={filteredLogs.slice(0, 10).map((l, i) => ({ name: `Entry ${i+1}`, value: 1 }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                      <XAxis dataKey="name" hide />
+                      <YAxis hide />
+                      <RechartsTooltip />
+                      <Bar dataKey="value" fill="#1B4332" radius={[4, 4, 0, 0]} />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm bg-white">
+                <CardHeader>
+                  <CardTitle className="text-lg font-bold text-[#1B4332] flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-emerald-500" /> AI Insights
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-emerald-50/50 p-4 rounded-xl text-sm italic text-emerald-900 leading-relaxed border border-emerald-100">
+                    "Visitor patterns show a peak in research activity during the early morning sessions. Consider allocating more staff to the main hall between 9 AM and 11 AM."
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'logs' && (
+          <Card className="border-emerald-100 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50 mb-4">
+              <CardTitle className="text-lg font-bold text-[#1B4332]">Entry Ledger</CardTitle>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Search logs..." 
+                  className="w-64 h-9 text-xs rounded-lg"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </CardHeader>
+            <Table>
+              <TableHeader className="bg-emerald-50/30">
+                <TableRow>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Visitor</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">ID / Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">College</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Activity</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.map((log) => (
+                  <TableRow key={log.id} className="hover:bg-emerald-50/20 transition-colors">
+                    <TableCell className="font-medium text-[#1B4332]">{log.visitorName}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-mono">{log.schoolId}</span>
+                        <Badge variant="outline" className="w-fit text-[8px] px-1.5 py-0 mt-1">{log.visitorType}</Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">{log.college}</TableCell>
+                    <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose}</TableCell>
+                    <TableCell className="text-[10px] font-mono">{format(parseISO(log.entryDateTime), 'HH:mm | MMM d')}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+        )}
+
+        {activeTab === 'manage' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Registered Visitors - Left */}
+            <div className="lg:col-span-7 space-y-6">
+              <h2 className="text-2xl font-bold text-[#1B4332]">Registered Visitors</h2>
+              <Card className="border-emerald-100 shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between py-4 border-b border-emerald-50">
+                  <CardTitle className="text-md font-bold text-emerald-800">All Users</CardTitle>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search..." className="pl-9 h-9 w-48 text-xs rounded-lg" />
+                  </div>
+                </CardHeader>
                 <Table>
-                  <TableHeader className="bg-slate-50/50">
+                  <TableHeader className="bg-emerald-50/30">
                     <TableRow>
-                      <TableHead className="font-bold py-5 pl-8 text-[10px] uppercase tracking-widest">Visitor Info</TableHead>
-                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">ID / Status</TableHead>
-                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Institution</TableHead>
-                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Activity</TableHead>
-                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Timestamp</TableHead>
-                      <TableHead className="text-right pr-8 font-bold text-[10px] uppercase tracking-widest">Mgmt</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase">Name</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase">ID</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase">College/Office</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase">Status</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredLogs.slice(0, 20).map((log) => (
-                      <TableRow key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                        <TableCell className="pl-8 py-5">
-                          <div className="font-bold text-[#264D73]">{log.visitorName}</div>
-                          <div className="text-xs text-muted-foreground">{log.visitorEmail}</div>
-                        </TableCell>
+                    {allUsers?.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
+                        <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
+                        <TableCell className="text-xs">{user.collegeOrOffice}</TableCell>
                         <TableCell>
-                           <div className="flex flex-col gap-1">
-                             <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#264D73]">
-                               <CreditCard className="h-3 w-3 text-[#36BBDB]" /> {log.schoolId || 'N/A'}
-                             </div>
-                             <Badge className={cn(
-                               "font-bold text-[9px] rounded-md px-1.5 py-0",
-                               log.visitorType === 'Student' ? 'bg-blue-100 text-blue-700 hover:bg-blue-100' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                             )}>
-                               {log.visitorType?.toUpperCase()}
-                             </Badge>
-                           </div>
+                          <Badge className={cn(
+                            "text-[9px] font-bold px-2 py-0.5 rounded-full",
+                            user.isBlocked ? "bg-rose-100 text-rose-600 hover:bg-rose-100" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-100"
+                          )}>
+                            {user.isBlocked ? "Blocked" : "Active"}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-sm font-medium text-slate-600">{log.college}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-xs font-semibold text-[#264D73]">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#36BBDB]" />
-                            {log.purpose}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-[10px] font-mono">
-                          {format(parseISO(log.entryDateTime), 'MMM d, yyyy')}<br/>
-                          <span className="font-bold">{format(parseISO(log.entryDateTime), 'hh:mm a')}</span>
-                        </TableCell>
-                        <TableCell className="text-right pr-8">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="hover:bg-slate-100 rounded-full"><MoreVertical className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="rounded-xl border-slate-200">
-                              <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive font-medium" onClick={() => handleDeleteLog(log.id)}>
-                                <Trash2 className="mr-2 h-4 w-4" /> Purge Entry
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className={cn(
+                              "text-[10px] font-bold h-7 px-3 rounded-md",
+                              user.isBlocked ? "text-emerald-600 hover:bg-emerald-50" : "text-rose-600 hover:bg-rose-50"
+                            )}
+                            onClick={() => toggleBlockStatus(user.id, user.isBlocked)}
+                          >
+                            {user.isBlocked ? "Unblock" : "Block"}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {!filteredLogs.length && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-20">
-                          <div className="flex flex-col items-center gap-2">
-                            <Search className="h-10 w-10 text-slate-200 mb-2" />
-                            <p className="text-slate-400 font-medium">No results found for current filter configuration</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          </div>
+              </Card>
+            </div>
 
-          <div className="space-y-10">
-            <Card className="border-none shadow-md bg-white overflow-hidden">
-              <div className="h-2 bg-[#36BBDB]" />
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl flex items-center gap-2 text-[#264D73]">
-                  <Sparkles className="h-6 w-6 text-[#36BBDB]" /> AI Trend Analysis
-                </CardTitle>
-                <CardDescription>Generative summary of current results</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isSummarizing ? (
-                  <div className="flex flex-col items-center py-12">
-                    <Loader2 className="h-12 w-12 text-[#36BBDB] animate-spin mb-4" />
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Processing Patterns...</p>
-                  </div>
-                ) : aiSummary ? (
-                  <div className="space-y-6">
-                    <div className="p-6 bg-[#F1F5F8] rounded-2xl border border-slate-200 leading-relaxed text-slate-700 italic text-sm">
-                      "{aiSummary}"
-                    </div>
-                    <Button variant="outline" className="w-full border-slate-200 text-slate-500 hover:text-[#264D73]" onClick={generateAiSummary}>
-                      Refresh Analysis
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-center py-10">
-                    <TrendingUp className="h-8 w-8 text-slate-300 mx-auto mb-4" />
-                    <p className="text-sm text-slate-500 mb-6 font-medium">Click to generate a natural language summary of the visitor trends.</p>
-                    <Button className="w-full bg-[#264D73] hover:bg-[#264D73]/90 h-12 rounded-xl" onClick={generateAiSummary} disabled={!filteredLogs.length}>
-                      Analyze Current View
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Right Column - Blocked & Add New */}
+            <div className="lg:col-span-5 space-y-8">
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-[#1B4332]">Blocked Visitors</h2>
+                <Card className="border-emerald-100 shadow-sm">
+                  <CardHeader className="py-4 border-b border-emerald-50">
+                    <CardTitle className="text-md font-bold text-emerald-800">Blocked List</CardTitle>
+                  </CardHeader>
+                  <Table>
+                    <TableHeader className="bg-emerald-50/30">
+                      <TableRow>
+                        <TableHead className="text-[10px] font-bold uppercase">Name</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase">ID</TableHead>
+                        <TableHead className="text-[10px] font-bold uppercase text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allUsers?.filter(u => u.isBlocked).map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
+                          <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-[10px] font-bold h-7 border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+                              onClick={() => toggleBlockStatus(user.id, true)}
+                            >
+                              Unblock
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              </div>
 
-            <Card className="border-none shadow-md bg-white">
-              <CardHeader>
-                <CardTitle className="font-headline text-xl text-[#264D73]">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-3">
-                <Button variant="outline" className="justify-start h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600">
-                  <Download className="mr-3 h-5 w-5 text-sky-500" /> Export Monthly CSV
-                </Button>
-                <Button variant="outline" className="justify-start h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600">
-                  <ShieldAlert className="mr-3 h-5 w-5 text-rose-500" /> Manage Blacklist
-                </Button>
-              </CardContent>
-            </Card>
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-[#1B4332]">Add New Visitor</h2>
+                <Card className="border-emerald-100 shadow-sm">
+                  <form onSubmit={handleAddVisitor}>
+                    <CardContent className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
+                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">School ID</Label>
+                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Institutional Email</Label>
+                        <Input name="email" type="email" placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">College / Office</Label>
+                          <Input name="college" placeholder="e.g. CICS, CAET..." className="h-10 text-xs rounded-lg border-emerald-100" required />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Type</Label>
+                          <Select name="type" defaultValue="Student">
+                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Student">Student</SelectItem>
+                              <SelectItem value="Faculty">Faculty</SelectItem>
+                              <SelectItem value="Staff">Staff</SelectItem>
+                              <SelectItem value="Guest">Guest</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full bg-[#2D6A4F] hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2">
+                        + Add Visitor
+                      </Button>
+                    </CardContent>
+                  </form>
+                </Card>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
