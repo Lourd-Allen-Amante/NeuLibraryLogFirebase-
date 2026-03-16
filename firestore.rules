@@ -5,26 +5,7 @@ service cloud.firestore {
     /**
      * NEU Library Visitor Log - Security Rules
      * 
-     * Core Philosophy:
-     * This ruleset implements a strict identity-based access model combined with 
-     * "Existence over Content" RBAC for administrative privileges. It prioritizes 
-     * Authorization Independence by using denormalized data and path-based ownership 
-     * to minimize costly cross-document lookups (get() calls).
-     * 
-     * Data Structure:
-     * - /users/{userId}: User profiles mapped directly to Firebase Auth UIDs.
-     * - /roles_admin/{userId}: Presence of a document here grants global admin rights.
-     * - /purposeOfVisits/{id}: Global lookup data for library visit reasons.
-     * - /visitorLogs/{id}: Audit trail of library entries.
-     * 
-     * Key Security Decisions:
-     * 1. RBAC via Existence: Admin status is determined by checking if a document exists 
-     *    in the /roles_admin collection for the current user's UID or if the user's 
-     *    email is explicitly whitelisted.
-     * 2. Log Integrity: Regular users can create logs (if the visitorId matches their UID) 
-     *    but cannot read, update, or delete them. This prevents tampering with entry history.
-     * 3. Profile Protection: Users can manage their own profiles, but sensitive fields 
-     *    like 'role' and 'isBlocked' are protected from self-modification.
+     * Deployment Trigger: v1.0.2 - Explicit SuperAdmin Whitelist Update
      */
 
     // --- Helper Functions ---
@@ -39,19 +20,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if the user exists in the admin roles collection or is whitelisted by email. */
+    /** @description Checks if the user is a designated super admin or has the admin role document. */
     function isAdmin() {
       return isSignedIn() && (
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
         request.auth.token.email == 'jcesperanza@neu.edu.ph' ||
-        request.auth.token.email == 'lourdallen.amante@neu.edu.ph'
+        request.auth.token.email == 'lourdallen.amante@neu.edu.ph' ||
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
       );
     }
 
     // --- Collection Rules ---
 
     /**
-     * @description Rules for user profiles. Users can manage their own data; Admins can view and block users.
+     * @description Rules for user profiles.
      * @path /users/{userId}
      */
     match /users/{userId} {
@@ -73,12 +54,15 @@ service cloud.firestore {
     }
 
     /**
-     * @description Audit logs for library entries. Users can log their own visits; Admins query for stats.
+     * @description Audit logs for library entries. 
      * @path /visitorLogs/{logId}
      */
     match /visitorLogs/{logId} {
       allow get, list: if isAdmin();
-      allow create: if isSignedIn() && (request.resource.data.visitorId == request.auth.uid || request.auth.token.firebase.sign_in_provider == 'anonymous');
+      allow create: if isSignedIn() && (
+        request.resource.data.visitorId == request.auth.uid || 
+        request.auth.token.firebase.sign_in_provider == 'anonymous'
+      );
       allow update, delete: if isAdmin();
     }
   }
