@@ -45,8 +45,6 @@ export default function LandingPage() {
     });
   };
 
-  const isSuperAdmin = user?.email === 'jcesperanza@neu.edu.ph';
-
   return (
     <div className="relative min-h-screen flex flex-col font-body overflow-hidden">
       {/* Background Layer */}
@@ -84,8 +82,7 @@ export default function LandingPage() {
           {user ? (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-white text-xs font-bold uppercase tracking-wider">{user.displayName || 'User'}</p>
-                {isSuperAdmin && <p className="text-emerald-400 text-[10px] font-bold uppercase">System Administrator</p>}
+                <p className="text-white text-xs font-bold uppercase tracking-wider">{user.displayName || 'USER'}</p>
               </div>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
@@ -106,7 +103,7 @@ export default function LandingPage() {
             Library Gateway
           </h1>
           <p className="text-lg md:text-xl text-emerald-100 max-w-2xl mx-auto font-light">
-            Secure terminal and administration for <span className="font-bold border-b-2 border-emerald-500">New Era University Library</span>.
+            Secure terminal and administration for <span className="font-bold border-b-2 border-emerald-50">New Era University Library</span>.
           </p>
         </div>
 
@@ -121,7 +118,7 @@ export default function LandingPage() {
                 <UserCircle className="h-14 w-14 text-[#1B4332]" />
               </div>
               <CardTitle className="text-3xl font-headline font-bold text-[#1B4332]">Visitor Terminal</CardTitle>
-              <CardDescription className="text-lg">Daily session check-in</CardDescription>
+              <CardDescription className="text-lg">Open session check-in</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
               <Link href="/visitor">
@@ -135,7 +132,7 @@ export default function LandingPage() {
             </CardContent>
           </Card>
 
-          {/* Admin Console Card - Still requires login */}
+          {/* Admin Console Card - Login Required */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <ShieldCheck className="h-32 w-32 text-[#1B4332]" />
@@ -148,25 +145,33 @@ export default function LandingPage() {
               <CardDescription className="text-lg">Analytics & Audit</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
-              <Link href={user ? "/admin" : "#"}>
+              {user ? (
+                <Link href="/admin">
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="w-full h-16 text-xl font-headline border-2 border-[#1B4332] text-[#1B4332] hover:bg-emerald-50 rounded-2xl"
+                  >
+                    Open Dashboard
+                  </Button>
+                </Link>
+              ) : (
                 <Button 
                   size="lg" 
                   variant="outline" 
                   className="w-full h-16 text-xl font-headline border-2 border-[#1B4332] text-[#1B4332] hover:bg-emerald-50 rounded-2xl"
-                  onClick={() => !user && handleGoogleLogin()}
+                  onClick={handleGoogleLogin}
                 >
-                  {user ? "Open Dashboard" : "Sign In to Access"}
+                  Sign In to Access
                 </Button>
-              </Link>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {!user && (
-          <p className="mt-8 text-emerald-200 text-sm font-medium animate-pulse">
-            Terminal open for all students. Admin login required for dashboard.
-          </p>
-        )}
+        <p className="mt-8 text-emerald-200 text-sm font-medium animate-pulse">
+          Terminal open for all students. Admin login required for dashboard.
+        </p>
       </main>
 
       <footer className="relative z-10 text-center p-8 text-emerald-200/40 text-[10px] font-mono uppercase tracking-[0.2em]">
