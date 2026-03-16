@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VISIT_PURPOSES, Purpose } from '@/lib/types';
-import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, CreditCard, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,6 @@ export default function VisitorCheckIn() {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
-  // Silent anonymous sign-in if no user is present
   useEffect(() => {
     if (!isUserLoading && !user && auth) {
       signInAnonymously(auth).catch((error) => {
@@ -37,7 +37,6 @@ export default function VisitorCheckIn() {
     }
   }, [user, isUserLoading, auth]);
 
-  // Get user profile if it exists
   const userRef = useMemoFirebase(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userRef);
 
@@ -154,23 +153,30 @@ export default function VisitorCheckIn() {
               </div>
               <CardContent className="p-10 space-y-8 bg-white">
                 {!idMethod ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button 
-                      variant="outline" 
-                      className="h-40 flex flex-col gap-4 rounded-3xl border-2 border-emerald-50 hover:border-emerald-600 hover:bg-emerald-50 transition-all group"
-                      onClick={() => setIdMethod('input')}
-                    >
-                      <Keyboard className="h-12 w-12 text-[#1B4332] group-hover:scale-110 transition-transform" />
-                      <span className="font-bold text-lg text-emerald-900">Input School ID</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-40 flex flex-col gap-4 rounded-3xl border-2 border-emerald-50 hover:border-emerald-600 hover:bg-emerald-50 transition-all group"
-                      onClick={() => setIdMethod('rfid')}
-                    >
-                      <CreditCard className="h-12 w-12 text-[#1B4332] group-hover:scale-110 transition-transform" />
-                      <span className="font-bold text-lg text-emerald-900">Tap ID Card (RFID)</span>
-                    </Button>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Button 
+                        variant="outline" 
+                        className="h-40 flex flex-col gap-4 rounded-3xl border-2 border-emerald-50 hover:border-[#1B4332] hover:bg-emerald-50 transition-all group"
+                        onClick={() => setIdMethod('input')}
+                      >
+                        <Keyboard className="h-12 w-12 text-[#1B4332] group-hover:scale-110 transition-transform" />
+                        <span className="font-bold text-lg text-emerald-900">Input School ID</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="h-40 flex flex-col gap-4 rounded-3xl border-2 border-emerald-50 hover:border-[#1B4332] hover:bg-emerald-50 transition-all group"
+                        onClick={() => setIdMethod('rfid')}
+                      >
+                        <CreditCard className="h-12 w-12 text-[#1B4332] group-hover:scale-110 transition-transform" />
+                        <span className="font-bold text-lg text-emerald-900">Tap ID Card (RFID)</span>
+                      </Button>
+                    </div>
+                    <Link href="/" className="block">
+                      <Button variant="ghost" className="w-full h-12 text-emerald-800 hover:bg-emerald-50 font-bold">
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Portal
+                      </Button>
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
@@ -181,7 +187,7 @@ export default function VisitorCheckIn() {
                           placeholder="00-00000-000" 
                           value={schoolId}
                           onChange={handleIdInput}
-                          className="h-16 text-3xl text-center font-mono tracking-widest border-2 border-emerald-100 focus:border-emerald-600 rounded-2xl bg-emerald-50/20"
+                          className="h-16 text-3xl text-center font-mono tracking-widest border-2 border-emerald-100 focus:border-[#1B4332] rounded-2xl bg-emerald-50/20"
                           autoFocus
                         />
                       </div>
@@ -197,9 +203,9 @@ export default function VisitorCheckIn() {
                     )}
                     
                     <div className="flex gap-4">
-                      <Button variant="ghost" className="h-14 flex-1 rounded-xl text-emerald-800 hover:bg-emerald-50" onClick={() => { setIdMethod(null); setSchoolId(''); }}>Back</Button>
+                      <Button variant="ghost" className="h-14 flex-1 rounded-xl text-emerald-800 hover:bg-emerald-50 font-bold" onClick={() => { setIdMethod(null); setSchoolId(''); }}>Back</Button>
                       {idMethod === 'input' && (
-                        <Button className="h-14 flex-[2] bg-emerald-700 hover:bg-[#1B4332] text-white text-xl font-headline rounded-xl shadow-lg" onClick={validateAndProceed}>
+                        <Button className="h-14 flex-[2] bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xl font-headline rounded-xl shadow-lg" onClick={validateAndProceed}>
                           Verify ID
                         </Button>
                       )}
@@ -224,8 +230,8 @@ export default function VisitorCheckIn() {
                       <Label
                         htmlFor={purpose}
                         className={cn(
-                          "relative flex flex-col items-start justify-center rounded-2xl border-2 border-emerald-50 p-6 hover:bg-emerald-50/50 hover:border-emerald-600 cursor-pointer transition-all h-32",
-                          selectedPurpose === purpose && "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600 ring-offset-2"
+                          "relative flex flex-col items-start justify-center rounded-2xl border-2 border-emerald-50 p-6 hover:bg-emerald-50/50 hover:border-[#1B4332] cursor-pointer transition-all h-32",
+                          selectedPurpose === purpose && "border-[#1B4332] bg-emerald-50 ring-2 ring-[#1B4332] ring-offset-2"
                         )}
                       >
                         <span className="font-headline font-bold text-xl text-[#1B4332]">{purpose}</span>
@@ -241,8 +247,8 @@ export default function VisitorCheckIn() {
                 </RadioGroup>
 
                 <div className="flex gap-4 pt-4">
-                  <Button variant="outline" className="flex-1 h-14 text-lg rounded-xl border-emerald-100 text-emerald-800 hover:bg-emerald-50" onClick={() => setStep('identify')}>Back</Button>
-                  <Button className="flex-[2] h-14 text-xl font-headline bg-emerald-700 hover:bg-[#1B4332] rounded-xl shadow-lg" onClick={handleCheckIn}>
+                  <Button variant="outline" className="flex-1 h-14 text-lg rounded-xl border-emerald-100 text-emerald-800 hover:bg-emerald-50 font-bold" onClick={() => setStep('identify')}>Back</Button>
+                  <Button className="flex-[2] h-14 text-xl font-headline bg-[#1B4332] hover:bg-[#2D6A4F] rounded-xl shadow-lg" onClick={handleCheckIn}>
                     Record Entry
                   </Button>
                 </div>
@@ -276,7 +282,7 @@ export default function VisitorCheckIn() {
         <span className="text-[10px] uppercase tracking-[0.4em]">New Era University • Library Management System</span>
         <Link href="/admin">
           <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-800/20 hover:text-emerald-600 transition-colors">
-            <ShieldCheck className="h-4 w-4" />
+            <Scan className="h-4 w-4" />
           </Button>
         </Link>
       </footer>
