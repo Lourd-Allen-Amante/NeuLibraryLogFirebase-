@@ -32,7 +32,7 @@ export default function LandingPage() {
       toast({
         variant: "destructive",
         title: "Sign-in Error",
-        description: error.message || "An unexpected error occurred during login.",
+        description: "Google Sign-In might not be enabled in the Firebase Console yet.",
       });
     }
   };
@@ -64,7 +64,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[#1c3b5a]/90 backdrop-blur-[2px]"></div>
       </div>
 
-      {/* Header / Auth Status */}
+      {/* Header */}
       <header className="relative z-20 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
           {neuLogo?.imageUrl && (
@@ -107,22 +107,22 @@ export default function LandingPage() {
             Library Gateway
           </h1>
           <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-light">
-            Secure check-in and administrative management system for <span className="font-bold border-b-2 border-[#36BBDB]">NEU Library</span>.
+            Secure terminal and administration for <span className="font-bold border-b-2 border-[#36BBDB]">New Era University Library</span>.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
           {/* Visitor Terminal Card */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
-             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
-               <DoorOpen className="h-32 w-32 text-[#264D73]" />
-             </div>
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
+              <DoorOpen className="h-32 w-32 text-[#264D73]" />
+            </div>
             <CardHeader className="text-center pb-2 pt-10">
               <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
                 <UserCircle className="h-14 w-14 text-[#264D73]" />
               </div>
               <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Visitor Terminal</CardTitle>
-              <CardDescription className="text-lg">Daily session entry & registration</CardDescription>
+              <CardDescription className="text-lg">Daily session check-in</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
               <Link href={user ? "/visitor" : "#"}>
@@ -139,15 +139,15 @@ export default function LandingPage() {
 
           {/* Admin Console Card */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
-             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
-               <ShieldCheck className="h-32 w-32 text-[#264D73]" />
-             </div>
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
+              <ShieldCheck className="h-32 w-32 text-[#264D73]" />
+            </div>
             <CardHeader className="text-center pb-2 pt-10">
               <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
                 <ShieldCheck className="h-14 w-14 text-[#264D73]" />
               </div>
               <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Admin Console</CardTitle>
-              <CardDescription className="text-lg">Analytics, Statistics & Log Audit</CardDescription>
+              <CardDescription className="text-lg">Analytics & Audit</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
               <Link href={user ? "/admin" : "#"}>
@@ -166,13 +166,13 @@ export default function LandingPage() {
 
         {!user && (
           <p className="mt-8 text-blue-200 text-sm font-medium animate-pulse">
-            Institutional Google Sign-In is required to access system features.
+            Sign in with your @neu.edu.ph account to continue.
           </p>
         )}
       </main>
 
       <footer className="relative z-10 text-center p-8 text-blue-200/40 text-[10px] font-mono uppercase tracking-[0.2em]">
-        New Era University Library • Intellectually Driven • Spiritually Fortified
+        New Era University • Intellectually Driven • Spiritually Fortified
       </footer>
     </div>
   );
