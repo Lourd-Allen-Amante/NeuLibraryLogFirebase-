@@ -36,27 +36,31 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 font-body overflow-hidden">
       <div className="absolute inset-0 z-0">
-        <Image 
-          src={libraryBg?.imageUrl || ''} 
-          alt="Library Background" 
-          fill 
-          className="object-cover"
-          priority
-        />
+        {libraryBg?.imageUrl && (
+          <Image 
+            src={libraryBg.imageUrl} 
+            alt="Library Background" 
+            fill 
+            className="object-cover"
+            priority
+          />
+        )}
         <div className="absolute inset-0 bg-[#1c3b5a]/90 backdrop-blur-[2px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-5xl">
         <div className="text-center mb-12 space-y-6">
           <div className="mx-auto w-32 h-32 bg-white p-2 rounded-full shadow-2xl mb-6 flex items-center justify-center overflow-hidden border-4 border-white">
-             <Image 
-               src={neuLogo?.imageUrl || ''} 
-               alt="NEU Logo" 
-               width={110} 
-               height={110} 
-               className="object-contain"
-               unoptimized
-             />
+             {neuLogo?.imageUrl && (
+               <Image 
+                 src={neuLogo.imageUrl} 
+                 alt="NEU Logo" 
+                 width={110} 
+                 height={110} 
+                 className="object-contain"
+                 unoptimized
+               />
+             )}
           </div>
           <h1 className="text-6xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-lg">
             Scholar<span className="text-[#36BBDB]">Flow</span>

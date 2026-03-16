@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -35,6 +34,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { 
   Table, 
   TableBody, 
@@ -64,14 +64,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format, subDays, startOfDay, endOfDay, parseISO, isWithinInterval } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
 import { deleteDocumentNonBlocking } from '@/firebase';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function AdminDashboard() {
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('All');
   const [collegeFilter, setCollegeFilter] = useState('All');
-  const [visitorTypeFilter, setVisitorTypeFilter] = useState('All'); // 'All', 'Student', 'Employee'
+  const [visitorTypeFilter, setVisitorTypeFilter] = useState('All'); 
   const [dateRange, setDateRange] = useState<{from: Date | undefined, to: Date | undefined}>({
     from: subDays(new Date(), 7),
     to: new Date()
@@ -90,11 +91,9 @@ export default function AdminDashboard() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
-  // Check if admin
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRef);
 
-  // Fetch real logs
   const logsQuery = useMemoFirebase(() => collection(db, 'visitorLogs'), [db]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
@@ -126,7 +125,6 @@ export default function AdminDashboard() {
     const today = startOfDay(new Date());
     const countToday = filteredLogs.filter(l => startOfDay(parseISO(l.entryDateTime)).getTime() === today.getTime()).length;
     
-    // Most popular purpose in filtered view
     const purposes = filteredLogs.reduce((acc, l) => {
       acc[l.purpose] = (acc[l.purpose] || 0) + 1;
       return acc;
@@ -173,7 +171,6 @@ export default function AdminDashboard() {
       title: "Generating Report",
       description: "Your PDF report is being prepared for download.",
     });
-    // In a real app, logic for generating PDF would go here.
   };
 
   const handleDeleteLog = (id: string) => {
@@ -182,9 +179,8 @@ export default function AdminDashboard() {
     toast({ title: "Log Entry Removed" });
   };
 
-  if (isAdminLoading) return <div className="flex h-screen items-center justify-center bg-[#F1F5F8]"><Loader2 className="animate-spin h-10 w-10 text-[#264D73]" /></div>;
+  if (isAdminLoading || isLogsLoading) return <div className="flex h-screen items-center justify-center bg-[#F1F5F8]"><Loader2 className="animate-spin h-10 w-10 text-[#264D73]" /></div>;
 
-  // jcesperanza@neu.edu.ph is super admin
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph';
   const hasAccess = !!adminRole || isSuperUser;
 
@@ -201,11 +197,12 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F1F5F8] flex font-body">
-      {/* Sidebar */}
       <aside className="w-72 bg-[#264D73] text-white hidden lg:flex flex-col border-r border-white/5">
         <div className="p-8">
           <div className="flex items-center gap-3 font-headline font-bold text-2xl mb-12">
-            <Image src={neuLogo?.imageUrl || ''} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1" />
+            {neuLogo?.imageUrl && (
+              <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1" />
+            )}
             ScholarFlow
           </div>
           
@@ -225,8 +222,10 @@ export default function AdminDashboard() {
         
         <div className="mt-auto p-8 border-t border-white/5 bg-black/10">
           <div className="flex items-center gap-3">
-            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-[#36BBDB]">
-               <Image src={adminAvatar?.imageUrl || ''} alt="Admin" fill className="object-cover" />
+            <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-[#36BBDB] bg-slate-200">
+               {adminAvatar?.imageUrl && (
+                 <Image src={adminAvatar.imageUrl} alt="Admin" fill className="object-cover" />
+               )}
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-bold truncate">{authUser?.displayName}</p>
@@ -236,7 +235,6 @@ export default function AdminDashboard() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-6 lg:p-10 overflow-auto">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
@@ -255,7 +253,6 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
           <Card className="border-none shadow-md bg-white relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
@@ -305,7 +302,6 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Filters Panel */}
         <Card className="mb-10 border-none shadow-md bg-white">
           <CardHeader className="border-b border-slate-50 pb-4">
             <CardTitle className="text-lg font-headline font-bold flex items-center gap-2">
@@ -400,7 +396,6 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-10">
-            {/* Visual Charts */}
             <Card className="border-none shadow-md bg-white">
               <CardHeader>
                 <CardTitle className="font-headline text-2xl text-[#264D73]">Attendance Volumetrics</CardTitle>
@@ -423,7 +418,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Audit Log Table */}
             <Card className="border-none shadow-md bg-white overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -507,7 +501,6 @@ export default function AdminDashboard() {
           </div>
 
           <div className="space-y-10">
-            {/* AI Insights */}
             <Card className="border-none shadow-md bg-white overflow-hidden">
               <div className="h-2 bg-[#36BBDB]" />
               <CardHeader>
@@ -548,7 +541,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Quick Actions / Status */}
             <Card className="border-none shadow-md bg-white">
               <CardHeader>
                 <CardTitle className="font-headline text-xl text-[#264D73]">Quick Actions</CardTitle>
@@ -566,7 +558,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Admin Notice */}
             <div className="p-6 bg-[#264D73]/5 rounded-2xl border border-[#264D73]/10">
               <h4 className="font-bold text-[#264D73] text-sm mb-2 flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4" /> System Policy Reminder
