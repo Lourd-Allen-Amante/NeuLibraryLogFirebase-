@@ -1,9 +1,10 @@
+
 {
   "placeholderImages": [
     {
       "id": "neu-logo",
       "description": "New Era University Logo",
-      "imageUrl": "https://upload.wikimedia.org/wikipedia/en/2/2e/New_Era_University_logo.png",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/en/c/c6/New_Era_University.svg",
       "imageHint": "university logo"
     },
     {

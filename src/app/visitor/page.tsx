@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VISIT_PURPOSES, Purpose } from '@/lib/types';
-import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, Mail, Loader2, ArrowLeft, ShieldX, UserX } from 'lucide-react';
+import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, Mail, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -269,7 +269,7 @@ export default function VisitorCheckIn() {
           {step === 'purpose' && (
             <Card className="shadow-2xl border-none rounded-3xl overflow-hidden">
               <CardHeader className="bg-[#1B4332] text-white text-center py-10">
-                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, {verifiedVisitor?.name.split(' ')[0]}!</CardTitle>
+                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, Student!</CardTitle>
                 <CardDescription className="text-emerald-100 text-lg">Select your purpose for visiting today</CardDescription>
               </CardHeader>
               <CardContent className="p-10 space-y-8 bg-white">
