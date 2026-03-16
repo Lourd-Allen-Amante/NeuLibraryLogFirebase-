@@ -1,9 +1,10 @@
+
 "use client";
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, ShieldAlert } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
@@ -28,20 +29,11 @@ export default function LandingPage() {
         description: "Successfully signed in to ScholarFlow.",
       });
     } catch (error: any) {
-      console.error("Login failed", error);
-      if (error.code === 'auth/operation-not-allowed') {
-        toast({
-          variant: "destructive",
-          title: "Login Provider Disabled",
-          description: "Google Sign-in is not yet enabled in the Firebase Console for this project.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Sign-in Error",
-          description: error.message || "An unexpected error occurred during login.",
-        });
-      }
+      toast({
+        variant: "destructive",
+        title: "Sign-in Error",
+        description: error.message || "An unexpected error occurred during login.",
+      });
     }
   };
 
@@ -57,7 +49,8 @@ export default function LandingPage() {
   const isSuperAdmin = user?.email === 'jcesperanza@neu.edu.ph';
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 font-body overflow-hidden">
+    <div className="relative min-h-screen flex flex-col font-body overflow-hidden">
+      {/* Background Layer */}
       <div className="absolute inset-0 z-0">
         {libraryBg?.imageUrl && (
           <Image 
@@ -71,114 +64,116 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[#1c3b5a]/90 backdrop-blur-[2px]"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-5xl">
-        <div className="text-center mb-12 space-y-6">
-          <div className="mx-auto w-32 h-32 bg-white p-2 rounded-full shadow-2xl mb-6 flex items-center justify-center overflow-hidden border-4 border-white">
-             {neuLogo?.imageUrl && (
-               <Image 
-                 src={neuLogo.imageUrl} 
-                 alt="NEU Logo" 
-                 width={110} 
-                 height={110} 
-                 className="object-contain"
-                 unoptimized
-               />
-             )}
-          </div>
-          <h1 className="text-6xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-lg">
+      {/* Header / Auth Status */}
+      <header className="relative z-20 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
+        <div className="flex items-center gap-3">
+          {neuLogo?.imageUrl && (
+            <Image 
+              src={neuLogo.imageUrl} 
+              alt="NEU Logo" 
+              width={40} 
+              height={40} 
+              className="bg-white rounded-full p-1 shadow-md"
+            />
+          )}
+          <span className="text-white font-headline font-bold text-xl tracking-tight">
             Scholar<span className="text-[#36BBDB]">Flow</span>
+          </span>
+        </div>
+        
+        <div>
+          {user ? (
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-white text-xs font-bold uppercase tracking-wider">{user.displayName}</p>
+                {isSuperAdmin && <p className="text-[#36BBDB] text-[10px] font-bold uppercase">System Administrator</p>}
+              </div>
+              <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={handleGoogleLogin} disabled={isUserLoading} className="bg-[#36BBDB] hover:bg-[#2EB0D0] text-white font-bold rounded-full px-6">
+              <LogIn className="mr-2 h-4 w-4" /> Sign In
+            </Button>
+          )}
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
+        <div className="text-center mb-12 space-y-4">
+          <h1 className="text-5xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-lg">
+            Library Gateway
           </h1>
-          <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
-            Visitor Management for <span className="font-bold border-b-2 border-[#36BBDB]">New Era University</span> Library.
+          <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-light">
+            Secure check-in and administrative management system for <span className="font-bold border-b-2 border-[#36BBDB]">NEU Library</span>.
           </p>
         </div>
 
-        {!user ? (
-          <div className="flex justify-center">
-            <Card className="w-full max-w-md border-none shadow-2xl bg-white/95 backdrop-blur-xl rounded-3xl overflow-hidden">
-              <div className="h-2 bg-[#36BBDB]" />
-              <CardHeader className="text-center pt-10">
-                <CardTitle className="text-2xl font-headline font-bold text-[#264D73]">Institutional Access</CardTitle>
-                <CardDescription className="text-slate-500">Secure sign-in using your @neu.edu.ph credentials</CardDescription>
-              </CardHeader>
-              <CardContent className="p-10">
-                <Button 
-                  onClick={handleGoogleLogin} 
-                  disabled={isUserLoading}
-                  className="w-full h-16 text-xl font-headline bg-[#264D73] hover:bg-[#1B3A57] shadow-lg rounded-2xl group transition-all"
-                >
-                  <LogIn className="mr-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  Sign in with Google
-                </Button>
-                <p className="text-center mt-6 text-xs text-muted-foreground">
-                  Access is restricted to authorized NEU personnel and students.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
-               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
-                 <DoorOpen className="h-32 w-32 text-[#264D73]" />
-               </div>
-              <CardHeader className="text-center pb-2 pt-10">
-                <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
-                  <UserCircle className="h-14 w-14 text-[#264D73]" />
-                </div>
-                <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Visitor Terminal</CardTitle>
-                <CardDescription className="text-lg">Check-in for study or research session</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8">
-                <Link href="/visitor">
-                  <Button size="lg" className="w-full h-16 text-xl font-headline bg-[#36BBDB] hover:bg-[#2EB0D0] rounded-2xl shadow-lg">
-                    Launch Entry <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
-            <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
-               <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
-                 <ShieldCheck className="h-32 w-32 text-[#264D73]" />
-               </div>
-              <CardHeader className="text-center pb-2 pt-10">
-                <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
-                  <ShieldCheck className="h-14 w-14 text-[#264D73]" />
-                </div>
-                <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Admin Console</CardTitle>
-                <CardDescription className="text-lg">View statistics and manage logs</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8">
-                <Link href="/admin">
-                  <Button size="lg" variant="outline" className="w-full h-16 text-xl font-headline border-2 border-[#264D73] text-[#264D73] hover:bg-[#264D73]/5 rounded-2xl">
-                    Open Dashboard
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            
-            <div className="md:col-span-2 flex flex-col items-center gap-4 mt-4">
-              <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center">
-                <p className="text-blue-100 text-sm font-medium">Signed in as <span className="text-white font-bold">{user.displayName}</span></p>
-                {isSuperAdmin && (
-                   <span className="inline-block mt-1 px-2 py-0.5 bg-[#36BBDB] text-white text-[10px] font-bold rounded uppercase tracking-wider">
-                     Authorized Super Admin
-                   </span>
-                )}
+        <div className="grid md:grid-cols-2 gap-8 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Visitor Terminal Card */}
+          <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
+             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
+               <DoorOpen className="h-32 w-32 text-[#264D73]" />
+             </div>
+            <CardHeader className="text-center pb-2 pt-10">
+              <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
+                <UserCircle className="h-14 w-14 text-[#264D73]" />
               </div>
-              <Button variant="ghost" className="text-blue-200 hover:text-white hover:bg-white/10 rounded-full px-6 transition-colors" onClick={handleLogout}>
-                Sign Out from System
-              </Button>
-            </div>
-          </div>
-        )}
+              <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Visitor Terminal</CardTitle>
+              <CardDescription className="text-lg">Daily session entry & registration</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <Link href={user ? "/visitor" : "#"}>
+                <Button 
+                  size="lg" 
+                  className="w-full h-16 text-xl font-headline bg-[#36BBDB] hover:bg-[#2EB0D0] rounded-2xl shadow-lg"
+                  onClick={() => !user && handleGoogleLogin()}
+                >
+                  Launch Terminal <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
 
-        <footer className="text-center mt-16 text-blue-200/60 text-sm">
-          <p>&copy; {new Date().getFullYear()} New Era University Library Management System</p>
-          <p className="mt-1 font-mono uppercase tracking-[0.2em] text-[10px]">Intellectually Driven • Spiritually Fortified</p>
-        </footer>
-      </div>
+          {/* Admin Console Card */}
+          <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
+             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
+               <ShieldCheck className="h-32 w-32 text-[#264D73]" />
+             </div>
+            <CardHeader className="text-center pb-2 pt-10">
+              <div className="mx-auto bg-blue-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
+                <ShieldCheck className="h-14 w-14 text-[#264D73]" />
+              </div>
+              <CardTitle className="text-3xl font-headline font-bold text-[#264D73]">Admin Console</CardTitle>
+              <CardDescription className="text-lg">Analytics, Statistics & Log Audit</CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <Link href={user ? "/admin" : "#"}>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="w-full h-16 text-xl font-headline border-2 border-[#264D73] text-[#264D73] hover:bg-[#264D73]/5 rounded-2xl"
+                  onClick={() => !user && handleGoogleLogin()}
+                >
+                  Open Dashboard
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {!user && (
+          <p className="mt-8 text-blue-200 text-sm font-medium animate-pulse">
+            Institutional Google Sign-In is required to access system features.
+          </p>
+        )}
+      </main>
+
+      <footer className="relative z-10 text-center p-8 text-blue-200/40 text-[10px] font-mono uppercase tracking-[0.2em]">
+        New Era University Library • Intellectually Driven • Spiritually Fortified
+      </footer>
     </div>
   );
 }
