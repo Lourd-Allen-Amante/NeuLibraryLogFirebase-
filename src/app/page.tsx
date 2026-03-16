@@ -1,10 +1,9 @@
-
 "use client";
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Library, UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
@@ -32,8 +31,10 @@ export default function LandingPage() {
     await signOut(auth);
   };
 
+  const isSuperAdmin = user?.email === 'jcesperanza@neu.edu.ph';
+
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 font-body">
+    <div className="relative min-h-screen flex items-center justify-center p-4 font-body overflow-hidden">
       <div className="absolute inset-0 z-0">
         <Image 
           src={libraryBg?.imageUrl || ''} 
@@ -42,25 +43,26 @@ export default function LandingPage() {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-[#264D73]/90 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-[#1c3b5a]/90 backdrop-blur-[2px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-5xl">
-        <div className="text-center mb-16 space-y-6">
-          <div className="mx-auto w-28 h-28 bg-white p-3 rounded-3xl shadow-2xl mb-6 flex items-center justify-center overflow-hidden rotate-3 hover:rotate-0 transition-transform">
+        <div className="text-center mb-12 space-y-6">
+          <div className="mx-auto w-32 h-32 bg-white p-2 rounded-full shadow-2xl mb-6 flex items-center justify-center overflow-hidden border-4 border-white">
              <Image 
                src={neuLogo?.imageUrl || ''} 
                alt="NEU Logo" 
-               width={90} 
-               height={90} 
+               width={110} 
+               height={110} 
                className="object-contain"
+               unoptimized
              />
           </div>
-          <h1 className="text-6xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-md">
+          <h1 className="text-6xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-lg">
             Scholar<span className="text-[#36BBDB]">Flow</span>
           </h1>
           <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
-            The next-generation Visitor Management System for <span className="font-bold border-b-2 border-[#36BBDB]">New Era University</span> Library.
+            Visitor Management for <span className="font-bold border-b-2 border-[#36BBDB]">New Era University</span> Library.
           </p>
         </div>
 
@@ -76,13 +78,13 @@ export default function LandingPage() {
                 <Button 
                   onClick={handleGoogleLogin} 
                   disabled={isUserLoading}
-                  className="w-full h-16 text-xl font-headline bg-[#264D73] hover:bg-[#1B3A57] shadow-lg rounded-2xl group"
+                  className="w-full h-16 text-xl font-headline bg-[#264D73] hover:bg-[#1B3A57] shadow-lg rounded-2xl group transition-all"
                 >
                   <LogIn className="mr-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   Sign in with Google
                 </Button>
                 <p className="text-center mt-6 text-xs text-muted-foreground">
-                  By signing in, you agree to the Library Privacy and Usage Policy.
+                  Access is restricted to authorized NEU personnel and students.
                 </p>
               </CardContent>
             </Card>
@@ -129,15 +131,23 @@ export default function LandingPage() {
               </CardContent>
             </Card>
             
-            <div className="md:col-span-2 flex justify-center mt-4">
-              <Button variant="ghost" className="text-white hover:bg-white/10 rounded-full px-6" onClick={handleLogout}>
-                Signed in as <span className="font-bold ml-1">{user.displayName}</span> <span className="mx-2 opacity-50">|</span> Logout
+            <div className="md:col-span-2 flex flex-col items-center gap-4 mt-4">
+              <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-center">
+                <p className="text-blue-100 text-sm font-medium">Signed in as <span className="text-white font-bold">{user.displayName}</span></p>
+                {isSuperAdmin && (
+                   <span className="inline-block mt-1 px-2 py-0.5 bg-[#36BBDB] text-white text-[10px] font-bold rounded uppercase tracking-wider">
+                     Authorized Super Admin
+                   </span>
+                )}
+              </div>
+              <Button variant="ghost" className="text-blue-200 hover:text-white hover:bg-white/10 rounded-full px-6 transition-colors" onClick={handleLogout}>
+                Sign Out from System
               </Button>
             </div>
           </div>
         )}
 
-        <footer className="text-center mt-20 text-blue-200/60 text-sm">
+        <footer className="text-center mt-16 text-blue-200/60 text-sm">
           <p>&copy; {new Date().getFullYear()} New Era University Library Management System</p>
           <p className="mt-1 font-mono uppercase tracking-[0.2em] text-[10px]">Intellectually Driven • Spiritually Fortified</p>
         </footer>
