@@ -15,6 +15,7 @@ import {
   PieChart as PieChartIcon,
   BarChart3,
   Calendar as CalendarIcon,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -282,10 +283,18 @@ export default function AdminDashboard() {
     toast({ title: "PDF Exported Successfully" });
   };
 
-  const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
+  // SUPERUSER CHECK - Robust matching for jcesperanza and lourdallen
+  const isSuperUser = useMemo(() => {
+    if (!authUser?.email) return false;
+    const email = authUser.email.toLowerCase();
+    // Supporting jcesperanza (as requested) and potentially jceperanza (as seen in screenshot)
+    return email === 'jcesperanza@neu.edu.ph' || 
+           email === 'jceperanza@neu.edu.ph' || 
+           email === 'lourdallen.amante@neu.edu.ph';
+  }, [authUser]);
+
   const hasAccess = !!adminRole || isSuperUser;
 
-  // IMPORTANT: We must wait for auth to finish loading before deciding if access is restricted
   if (isAuthLoading || isAdminRoleLoading || isLogsLoading || isVisitorsLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F1F5F8]">
@@ -305,6 +314,19 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
           You do not have administrative privileges. Please sign in with an authorized NEU account.
         </p>
+        
+        {/* DEBUG INFO FOR USER */}
+        <div className="mt-8 p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3 text-left max-w-md mx-auto">
+          <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">Debug Session Info</p>
+            <p className="text-sm text-rose-700">Logged in as: <span className="font-bold underline">{authUser?.email || 'Guest (Anonymous)'}</span></p>
+            <p className="text-[10px] text-rose-600 mt-2 italic leading-relaxed">
+              If the email above doesn't match your superuser emails exactly (including spelling), access will be denied. Check for typos in your Firebase Console.
+            </p>
+          </div>
+        </div>
+
         <Link href="/"><Button className="mt-8 bg-[#1B4332] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
@@ -328,7 +350,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
             <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-200/40">Logged in as</p>
-            <p className="text-xs font-bold">{authUser?.displayName || 'Admin'}</p>
+            <p className="text-xs font-bold">{authUser?.displayName || authUser?.email || 'Admin'}</p>
           </div>
           <Link href="/"><Button variant="ghost" className="text-white hover:bg-white/10 h-9 text-xs font-bold border border-white/20">Sign Out</Button></Link>
         </div>

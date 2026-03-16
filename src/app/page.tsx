@@ -32,9 +32,11 @@ export default function LandingPage() {
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Specific Greeting for Regular User jcesperanza@neu.edu.ph
+  // Specific Greeting for Regular User - flexible matching for typo
   useEffect(() => {
-    if (user?.email === 'jcesperanza@neu.edu.ph') {
+    if (!user?.email) return;
+    const email = user.email.toLowerCase();
+    if (email === 'jcesperanza@neu.edu.ph' || email === 'jceperanza@neu.edu.ph') {
       toast({
         title: "Welcome to NEU Library!",
         description: "You have successfully logged into the system.",
@@ -57,10 +59,15 @@ export default function LandingPage() {
       setEmail('');
       setPassword('');
     } catch (error: any) {
+      console.error("Login error:", error);
       let message = "Invalid email or password.";
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      // Handle various Firebase Auth error codes
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         message = "Incorrect credentials. Please try again.";
+      } else if (error.code === 'auth/user-disabled') {
+        message = "This account has been disabled.";
       }
+      
       toast({
         variant: "destructive",
         title: "Login Failed",
