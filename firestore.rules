@@ -1,11 +1,10 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * NEU Library Visitor Log - Security Rules v1.0.8
-     * Optimized for Strict Registration Verification.
+     * NEU Library Visitor Log - Security Rules v1.1.0
+     * Explicit Admin Authorization for jcesperanza@neu.edu.ph and lourdallen.amante@neu.edu.ph
      */
 
     function isSignedIn() {
@@ -21,8 +20,6 @@ service cloud.firestore {
     }
 
     match /registeredVisitors/{visitorId} {
-      // Allow any signed-in user (including anonymous terminal sessions) to query 
-      // registration status for verification purposes.
       allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }

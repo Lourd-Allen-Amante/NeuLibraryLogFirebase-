@@ -1,17 +1,6 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { 
-  BarChart as RechartsBarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as RechartsTooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,7 +12,10 @@ import {
   Loader2,
   CheckCircle,
   FileDown,
-  UserPlus
+  UserPlus,
+  Filter,
+  Calendar as CalendarIcon,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +46,8 @@ import { collection, doc, setDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { startOfDay, endOfDay, parseISO, subDays, format } from 'date-fns';
+import { startOfDay, endOfDay, parseISO, subDays, format, isWithinInterval, isSameDay, startOfWeek, endOfWeek } from 'date-fns';
+import { VISIT_PURPOSES } from '@/lib/types';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -63,6 +56,12 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Filtering States
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('all');
+  const [purposeFilter, setPurposeFilter] = useState<string>('all');
+  const [collegeFilter, setCollegeFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
   // Form States for Add Visitor
   const [formName, setFormName] = useState('');
   const [formSchoolId, setFormSchoolId] = useState('');
@@ -85,6 +84,53 @@ export default function AdminDashboard() {
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
 
+  // Logic for statistics
+  const filteredLogs = useMemo(() => {
+    if (!logs) return [];
+    
+    return logs.filter(log => {
+      const logDate = parseISO(log.entryDateTime);
+      const now = new Date();
+      
+      // Date Filtering
+      let dateMatch = true;
+      if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
+      if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: startOfWeek(now), end: endOfWeek(now) });
+
+      // Category Filtering
+      const purposeMatch = purposeFilter === 'all' || log.purpose === purposeFilter;
+      const collegeMatch = collegeFilter === 'all' || log.college === collegeFilter;
+      
+      // Type Filtering (Student vs Employee)
+      let typeMatch = true;
+      if (typeFilter === 'Student') typeMatch = log.visitorType === 'Student';
+      if (typeFilter === 'Employee') typeMatch = ['Faculty', 'Staff'].includes(log.visitorType);
+
+      return dateMatch && purposeMatch && collegeMatch && typeMatch;
+    });
+  }, [logs, dateFilter, purposeFilter, collegeFilter, typeFilter]);
+
+  const stats = useMemo(() => {
+    const total = filteredLogs.length;
+    const students = filteredLogs.filter(l => l.visitorType === 'Student').length;
+    const employees = filteredLogs.filter(l => ['Faculty', 'Staff'].includes(l.visitorType)).length;
+    
+    // Most popular purpose in filtered set
+    const purposeCounts = filteredLogs.reduce((acc: any, curr) => {
+      acc[curr.purpose] = (acc[curr.purpose] || 0) + 1;
+      return acc;
+    }, {});
+    const topPurpose = Object.entries(purposeCounts).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || 'N/A';
+
+    return { total, students, employees, topPurpose };
+  }, [filteredLogs]);
+
+  const uniqueColleges = useMemo(() => {
+    if (!logs) return [];
+    const colleges = new Set(logs.map(l => l.college));
+    return Array.from(colleges).sort();
+  }, [logs]);
+
   // Auto Capitalize Helper
   const handleNameInput = (val: string) => {
     const formatted = val
@@ -103,20 +149,13 @@ export default function AdminDashboard() {
     setFormSchoolId(formatted);
   };
 
-  const stats = useMemo(() => {
-    const total = logs?.length || 0;
-    const today = startOfDay(new Date());
-    const countToday = logs?.filter(l => startOfDay(parseISO(l.entryDateTime)).getTime() === today.getTime()).length || 0;
-    return { total, countToday };
-  }, [logs]);
-
   const generateAiSummary = async () => {
-    if (!logs?.length) return;
+    if (!filteredLogs.length) return;
     setIsSummarizing(true);
     try {
       const res = await adminVisitorTrendSummaries({
-        periodDescription: `Current logs analysis`,
-        visitorEntries: logs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
+        periodDescription: dateFilter === 'today' ? 'today' : dateFilter === 'week' ? 'this week' : 'overall',
+        visitorEntries: filteredLogs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
       });
       setAiSummary(res.summary);
     } catch (e) {
@@ -156,7 +195,6 @@ export default function AdminDashboard() {
     
     toast({ title: "Visitor Registered Successfully" });
     
-    // Clear Form
     setFormName('');
     setFormSchoolId('');
     setFormEmail('');
@@ -205,7 +243,7 @@ export default function AdminDashboard() {
             className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'overview' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
             onClick={() => setActiveTab('overview')}
           >
-            <LayoutDashboard className="mr-2 h-4 w-4" /> Overview
+            <LayoutDashboard className="mr-2 h-4 w-4" /> Statistics
           </Button>
           <Button 
             variant="ghost" 
@@ -224,35 +262,94 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="flex items-center gap-4">
-          <Button variant="outline" className="bg-[#2D6A4F] border-none text-white hover:bg-[#40916C] h-9 text-xs font-bold">
-            <FileDown className="mr-2 h-4 w-4" /> Export Report
-          </Button>
           <Link href="/">
             <Button variant="ghost" className="text-white hover:bg-white/10 h-9 text-xs font-bold">Sign Out</Button>
           </Link>
         </div>
       </header>
 
-      <main className="flex-1 p-8">
+      <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Filtering Controls */}
+            <Card className="border-emerald-100 shadow-sm">
+              <CardHeader className="pb-3 border-b border-emerald-50">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-emerald-900">
+                  <Filter className="h-4 w-4" /> Filter Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Time Period</Label>
+                    <Select value={dateFilter} onValueChange={(v: any) => setDateFilter(v)}>
+                      <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">This Week</SelectItem>
+                        <SelectItem value="all">All Time</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Visitor Type</Label>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="Student">Students Only</SelectItem>
+                        <SelectItem value="Employee">Employees Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-emerald-800/60">College</Label>
+                    <Select value={collegeFilter} onValueChange={setCollegeFilter}>
+                      <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Colleges</SelectItem>
+                        {uniqueColleges.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Purpose</Label>
+                    <Select value={purposeFilter} onValueChange={setPurposeFilter}>
+                      <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Purposes</SelectItem>
+                        {VISIT_PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="border-emerald-100 shadow-sm bg-white">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Total Library Entries</CardDescription>
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Filtered Entries</CardDescription>
                   <CardTitle className="text-4xl font-headline text-[#1B4332]">{stats.total}</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm bg-white">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Students</CardDescription>
+                  <CardTitle className="text-4xl font-headline text-emerald-600">{stats.students}</CardTitle>
+                </CardHeader>
+              </Card>
+              <Card className="border-emerald-100 shadow-sm bg-white">
+                <CardHeader className="pb-2">
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Employees</CardDescription>
+                  <CardTitle className="text-4xl font-headline text-emerald-700">{stats.employees}</CardTitle>
                 </CardHeader>
               </Card>
               <Card className="border-emerald-100 shadow-sm bg-emerald-50">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Entries Today</CardDescription>
-                  <CardTitle className="text-4xl font-headline text-[#1B4332]">{stats.countToday}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="border-emerald-100 shadow-sm bg-white">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Registered Patrons</CardDescription>
-                  <CardTitle className="text-4xl font-headline text-[#1B4332]">{allVisitors?.length || 0}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Top Activity</CardDescription>
+                  <CardTitle className="text-lg font-bold text-[#1B4332] truncate">{stats.topPurpose}</CardTitle>
                 </CardHeader>
               </Card>
             </div>
@@ -260,15 +357,15 @@ export default function AdminDashboard() {
             <Card className="border-emerald-100 shadow-sm bg-white overflow-hidden">
               <CardHeader className="bg-[#1B4332] text-white py-4 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-300" /> AI Insights
+                  <Sparkles className="h-4 w-4 text-emerald-300" /> AI Trend Analysis
                 </CardTitle>
                 <Button 
                   onClick={generateAiSummary} 
-                  disabled={isSummarizing || !logs?.length}
+                  disabled={isSummarizing || !filteredLogs.length}
                   className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold h-8 px-4 rounded-lg text-xs"
                 >
                   {isSummarizing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <TrendingUp className="mr-2 h-3 w-3" />}
-                  Analyze Trends
+                  Analyze Filtered Set
                 </Button>
               </CardHeader>
               <CardContent className="p-6">
@@ -279,7 +376,7 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
                     <TrendingUp className="h-12 w-12 text-emerald-100 mb-4" />
-                    <p className="text-xs">Click "Analyze Trends" to generate an AI summary of library usage.</p>
+                    <p className="text-xs">Click "Analyze Filtered Set" for a natural language summary of the current filters.</p>
                   </div>
                 )}
               </CardContent>
@@ -290,13 +387,16 @@ export default function AdminDashboard() {
         {activeTab === 'logs' && (
           <Card className="border-emerald-100 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
-              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Logs</CardTitle>
-              <Input 
-                placeholder="Search logs..." 
-                className="w-64 h-9 text-xs rounded-lg border-emerald-100"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Ledger</CardTitle>
+              <div className="flex items-center gap-4">
+                <Badge variant="outline" className="text-emerald-700 border-emerald-100">{filteredLogs.length} Results</Badge>
+                <Input 
+                  placeholder="Search logs..." 
+                  className="w-64 h-9 text-xs rounded-lg border-emerald-100"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
             </CardHeader>
             <Table>
               <TableHeader className="bg-emerald-50/30">
@@ -304,16 +404,20 @@ export default function AdminDashboard() {
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Visitor</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">School ID</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Purpose</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Timestamp</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Type</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800 text-right">Timestamp</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs?.filter(l => l.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) || l.schoolId.includes(searchQuery)).map((log) => (
+                {filteredLogs.filter(l => l.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) || l.schoolId.includes(searchQuery)).map((log) => (
                   <TableRow key={log.id} className="hover:bg-emerald-50/10 border-emerald-50">
                     <TableCell className="font-bold text-[#1B4332]">{log.visitorName}</TableCell>
                     <TableCell className="text-xs font-mono">{log.schoolId}</TableCell>
                     <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose}</TableCell>
-                    <TableCell className="text-[10px] font-mono text-muted-foreground">{format(parseISO(log.entryDateTime), 'MMM d, yyyy HH:mm')}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-[9px] font-bold">{log.visitorType}</Badge>
+                    </TableCell>
+                    <TableCell className="text-[10px] font-mono text-muted-foreground text-right">{format(parseISO(log.entryDateTime), 'MMM d, HH:mm')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -326,7 +430,7 @@ export default function AdminDashboard() {
             <div className="lg:col-span-8 space-y-6">
               <Card className="border-emerald-100 shadow-sm bg-white">
                 <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
-                  <CardTitle className="text-md font-bold text-emerald-900">Registered Visitors</CardTitle>
+                  <CardTitle className="text-md font-bold text-emerald-900">Registered Patrons</CardTitle>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
@@ -381,8 +485,7 @@ export default function AdminDashboard() {
             <div className="lg:col-span-4">
               <Card className="border-emerald-100 shadow-sm sticky top-8">
                 <CardHeader className="bg-emerald-50 border-b border-emerald-100">
-                  <CardTitle className="text-md font-bold text-emerald-900">Add New Visitor</CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold text-emerald-800/40">Registration Form</CardDescription>
+                  <CardTitle className="text-md font-bold text-emerald-900">Register New Visitor</CardTitle>
                 </CardHeader>
                 <form onSubmit={handleAddVisitor}>
                   <CardContent className="p-6 space-y-4">
@@ -391,7 +494,7 @@ export default function AdminDashboard() {
                       <Input 
                         value={formName}
                         onChange={(e) => handleNameInput(e.target.value)}
-                        placeholder="Ex: Jorus Junio" 
+                        placeholder="e.g. Jorus Junio" 
                         className="h-10 text-xs rounded-lg border-emerald-100" 
                         required 
                       />
@@ -422,14 +525,14 @@ export default function AdminDashboard() {
                       <Input 
                         value={formCollege}
                         onChange={(e) => setFormCollege(e.target.value.toUpperCase())}
-                        placeholder="Ex: CICS" 
+                        placeholder="e.g. CICS" 
                         className="h-10 text-xs rounded-lg border-emerald-100" 
                         required 
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
-                      <Select value={formType} onValueChange={setFormType}>
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Visitor Type</Label>
+                      <Select value={formType} onValueChange={formType}>
                         <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Student">Student</SelectItem>
@@ -440,7 +543,7 @@ export default function AdminDashboard() {
                       </Select>
                     </div>
                     <Button type="submit" className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold h-12 rounded-xl mt-4 shadow-lg">
-                      <UserPlus className="mr-2 h-4 w-4" /> Register Visitor
+                      <UserPlus className="mr-2 h-4 w-4" /> Add to Registry
                     </Button>
                   </CardContent>
                 </form>
