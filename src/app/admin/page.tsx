@@ -284,16 +284,15 @@ export default function AdminDashboard() {
     toast({ title: "PDF Exported Successfully" });
   };
 
-  // SUPERUSER CHECK - Robust matching including common typo variants
+  // SUPERUSER CHECK
   const isSuperUser = useMemo(() => {
     if (!authUser?.email) return false;
     const email = authUser.email.toLowerCase();
     
-    // We match against the requested emails and common variants found in screenshots
     const superusers = [
       'jcesperanza@neu.edu.ph',
-      'jcezperanza@neu.edu.ph', // Typo with 'z'
-      'jceperanza@neu.edu.ph',  // Typo missing 's'
+      'jcezperanza@neu.edu.ph', // Support 'z' typo variant
+      'jceperanza@neu.edu.ph',  // Support missing 's' typo variant
       'lourdallen.amante@neu.edu.ph'
     ];
     

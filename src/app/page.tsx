@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, KeyRound, Mail } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, KeyRound, Mail, Eye, EyeOff } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
@@ -31,18 +31,21 @@ export default function LandingPage() {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Specific Greeting for Regular User - flexible matching for typo
+  // Authorized Admin Emails (including variants/typos found in setup)
+  const authorizedEmails = [
+    'jcesperanza@neu.edu.ph',
+    'jcezperanza@neu.edu.ph',
+    'jceperanza@neu.edu.ph',
+    'lourdallen.amante@neu.edu.ph'
+  ];
+
+  // Specific Greeting for Authorized Admins
   useEffect(() => {
     if (!user?.email) return;
     const emailLower = user.email.toLowerCase();
-    const authorizedEmails = [
-      'jcesperanza@neu.edu.ph',
-      'jcezperanza@neu.edu.ph',
-      'jceperanza@neu.edu.ph',
-      'lourdallen.amante@neu.edu.ph'
-    ];
     
     if (authorizedEmails.includes(emailLower)) {
       toast({
@@ -58,7 +61,9 @@ export default function LandingPage() {
 
     setIsLoggingIn(true);
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      // Use trim() to ensure no accidental spaces in email
+      await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      
       toast({
         title: "Access Granted",
         description: `Welcome back, ${email.split('@')[0]}!`,
@@ -67,21 +72,23 @@ export default function LandingPage() {
       setEmail('');
       setPassword('');
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Firebase Auth Error:", error.code, error.message);
+      
       let message = "Invalid email or password.";
       
-      // Handle various Firebase Auth error codes
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = "Incorrect credentials. Please verify your email spelling and password.";
-      } else if (error.code === 'auth/user-disabled') {
-        message = "This account has been disabled.";
+      if (error.code === 'auth/invalid-credential') {
+        message = "Incorrect credentials. Please verify your password and ensure 'Email/Password' is enabled in Firebase Console.";
+      } else if (error.code === 'auth/user-not-found') {
+        message = "No account found with this email. Please check your spelling.";
+      } else if (error.code === 'auth/wrong-password') {
+        message = "The password you entered is incorrect.";
       } else if (error.code === 'auth/too-many-requests') {
-        message = "Too many failed attempts. Please try again later.";
+        message = "Account temporarily locked due to many failed attempts. Try again in a few minutes.";
       }
       
       toast({
         variant: "destructive",
-        title: "Login Failed",
+        title: "Authentication Failed",
         description: message,
       });
     } finally {
@@ -259,13 +266,22 @@ export default function LandingPage() {
                   <KeyRound className="absolute left-3 top-3 h-4 w-4 text-emerald-600/40" />
                   <Input 
                     id="password" 
-                    type="password" 
+                    type={showPassword ? "text" : "password"} 
                     placeholder="••••••••" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-12 border-emerald-100 focus:border-[#1B4332] rounded-xl"
+                    className="pl-10 pr-10 h-12 border-emerald-100 focus:border-[#1B4332] rounded-xl"
                     required
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-2 h-8 w-8 p-0 text-emerald-600/40 hover:text-emerald-600"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
             </div>
