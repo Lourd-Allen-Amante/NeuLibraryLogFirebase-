@@ -142,6 +142,22 @@ export default function AdminDashboard() {
     return { total, countToday, topPurpose };
   }, [filteredLogs]);
 
+  const generateAiSummary = async () => {
+    if (!filteredLogs.length) return;
+    setIsSummarizing(true);
+    try {
+      const res = await adminVisitorTrendSummaries({
+        periodDescription: `Current filtered range`,
+        visitorEntries: filteredLogs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
+      });
+      setAiSummary(res.summary);
+    } catch (e) {
+      toast({ title: "Analysis failed", variant: "destructive" });
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
   // Actions
   const toggleBlockStatus = (userId: string, currentStatus: boolean) => {
     const userRef = doc(db, 'users', userId);
@@ -165,7 +181,6 @@ export default function AdminDashboard() {
       role: 'RegularUser'
     };
 
-    // Use a temp ID or actual auth creation if needed, here we just add to Firestore
     const newDocRef = doc(collection(db, 'users'));
     setDoc(newDocRef, { ...newVisitor, id: newDocRef.id });
     
@@ -283,8 +298,20 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <Card className="lg:col-span-2 border-emerald-100 shadow-sm">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg font-bold text-[#1B4332]">7-Day Visitation Trends</CardTitle>
+                  <div className="flex gap-2">
+                    <Select value={purposeFilter} onValueChange={setPurposeFilter}>
+                      <SelectTrigger className="w-[140px] h-8 text-xs bg-white border-emerald-100"><SelectValue placeholder="All Purposes" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All Purposes</SelectItem>
+                        <SelectItem value="Reading Books">Reading Books</SelectItem>
+                        <SelectItem value="Research in Thesis">Research</SelectItem>
+                        <SelectItem value="Use of Computer">Computer Use</SelectItem>
+                        <SelectItem value="Doing Assignments">Assignments</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -293,21 +320,40 @@ export default function AdminDashboard() {
                       <XAxis dataKey="name" hide />
                       <YAxis hide />
                       <RechartsTooltip />
-                      <Bar dataKey="value" fill="#1B4332" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="value" fill="#1B4332" radius={[4, 4, 0, 0]}>
+                        {filteredLogs.slice(0, 10).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#1B4332" : "#2D6A4F"} />
+                        ))}
+                      </Bar>
                     </RechartsBarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <Card className="border-emerald-100 shadow-sm bg-white">
-                <CardHeader>
-                  <CardTitle className="text-lg font-bold text-[#1B4332] flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-emerald-500" /> AI Insights
+              <Card className="border-emerald-100 shadow-sm bg-white overflow-hidden">
+                <CardHeader className="bg-[#1B4332] text-white py-4">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-300" /> AI Trend Summary
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="bg-emerald-50/50 p-4 rounded-xl text-sm italic text-emerald-900 leading-relaxed border border-emerald-100">
-                    "Visitor patterns show a peak in research activity during the early morning sessions. Consider allocating more staff to the main hall between 9 AM and 11 AM."
-                  </div>
+                <CardContent className="p-6">
+                  {aiSummary ? (
+                    <div className="text-sm text-emerald-900 leading-relaxed font-medium bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                      {aiSummary}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <TrendingUp className="h-12 w-12 text-emerald-200 mb-4" />
+                      <p className="text-xs text-muted-foreground mb-4">No analysis generated yet for this filter set.</p>
+                      <Button 
+                        onClick={generateAiSummary} 
+                        disabled={isSummarizing || !filteredLogs.length}
+                        className="bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-10 px-6 rounded-lg text-xs"
+                      >
+                        {isSummarizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                        Generate Analysis
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -321,10 +367,18 @@ export default function AdminDashboard() {
               <div className="flex gap-2">
                 <Input 
                   placeholder="Search logs..." 
-                  className="w-64 h-9 text-xs rounded-lg"
+                  className="w-64 h-9 text-xs rounded-lg border-emerald-100"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                 />
+                <Select value={visitorTypeFilter} onValueChange={setVisitorTypeFilter}>
+                  <SelectTrigger className="w-[140px] h-9 text-xs bg-white border-emerald-100"><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All Types</SelectItem>
+                    <SelectItem value="Student">Students Only</SelectItem>
+                    <SelectItem value="Employee">Employees Only</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <Table>
@@ -339,12 +393,12 @@ export default function AdminDashboard() {
               </TableHeader>
               <TableBody>
                 {filteredLogs.map((log) => (
-                  <TableRow key={log.id} className="hover:bg-emerald-50/20 transition-colors">
+                  <TableRow key={log.id} className="hover:bg-emerald-50/20 transition-colors border-emerald-50">
                     <TableCell className="font-medium text-[#1B4332]">{log.visitorName}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-xs font-mono">{log.schoolId}</span>
-                        <Badge variant="outline" className="w-fit text-[8px] px-1.5 py-0 mt-1">{log.visitorType}</Badge>
+                        <Badge variant="outline" className="w-fit text-[8px] px-1.5 py-0 mt-1 border-emerald-200 text-emerald-700">{log.visitorType}</Badge>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">{log.college}</TableCell>
@@ -367,7 +421,7 @@ export default function AdminDashboard() {
                   <CardTitle className="text-md font-bold text-emerald-800">All Users</CardTitle>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search..." className="pl-9 h-9 w-48 text-xs rounded-lg" />
+                    <Input placeholder="Search..." className="pl-9 h-9 w-48 text-xs rounded-lg border-emerald-100" />
                   </div>
                 </CardHeader>
                 <Table>
@@ -382,7 +436,7 @@ export default function AdminDashboard() {
                   </TableHeader>
                   <TableBody>
                     {allUsers?.map((user) => (
-                      <TableRow key={user.id}>
+                      <TableRow key={user.id} className="border-emerald-50">
                         <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
                         <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
                         <TableCell className="text-xs">{user.collegeOrOffice}</TableCell>
@@ -432,7 +486,7 @@ export default function AdminDashboard() {
                     </TableHeader>
                     <TableBody>
                       {allUsers?.filter(u => u.isBlocked).map((user) => (
-                        <TableRow key={user.id}>
+                        <TableRow key={user.id} className="border-emerald-50">
                           <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
                           <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
                           <TableCell className="text-right">
@@ -459,27 +513,27 @@ export default function AdminDashboard() {
                     <CardContent className="p-6 space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Full Name</Label>
-                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
+                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">School ID</Label>
-                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
+                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-muted-foreground">Institutional Email</Label>
-                        <Input name="email" type="email" placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100" required />
+                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional Email</Label>
+                        <Input name="email" type="email" placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">College / Office</Label>
-                          <Input name="college" placeholder="e.g. CICS, CAET..." className="h-10 text-xs rounded-lg border-emerald-100" required />
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">College / Office</Label>
+                          <Input name="college" placeholder="e.g. CICS, CAET..." className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-muted-foreground">Type</Label>
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
                           <Select name="type" defaultValue="Student">
-                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Student">Student</SelectItem>
                               <SelectItem value="Faculty">Faculty</SelectItem>
@@ -489,8 +543,8 @@ export default function AdminDashboard() {
                           </Select>
                         </div>
                       </div>
-                      <Button type="submit" className="w-full bg-[#2D6A4F] hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2">
-                        + Add Visitor
+                      <Button type="submit" className="w-full bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2 shadow-lg">
+                        <UserPlus className="mr-2 h-4 w-4" /> Add Visitor
                       </Button>
                     </CardContent>
                   </form>
