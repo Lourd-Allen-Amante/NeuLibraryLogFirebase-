@@ -6,14 +6,11 @@ import {
   Users, 
   ClipboardList, 
   ShieldAlert, 
-  TrendingUp,
   Search,
-  Sparkles,
   Loader2,
   UserPlus,
   Filter,
   FileDown,
-  LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +39,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
-import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
@@ -50,7 +46,7 @@ import { collection, doc, setDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -75,9 +71,6 @@ export default function AdminDashboard() {
   const [formEmail, setFormEmail] = useState('');
   const [formCollege, setFormCollege] = useState('');
   const [formType, setFormType] = useState('Student');
-
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // Firestore Queries
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
@@ -216,22 +209,6 @@ export default function AdminDashboard() {
     doc.save(`NEU_Library_Logs_${period}_${format(now, 'yyyyMMdd')}.pdf`);
     setIsExporting(false);
     toast({ title: "PDF Exported Successfully" });
-  };
-
-  const generateAiSummary = async () => {
-    if (!filteredLogs.length) return;
-    setIsSummarizing(true);
-    try {
-      const res = await adminVisitorTrendSummaries({
-        periodDescription: dateFilter === 'today' ? 'today' : dateFilter === 'week' ? 'this week' : 'overall',
-        visitorEntries: filteredLogs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
-      });
-      setAiSummary(res.summary);
-    } catch (e) {
-      toast({ title: "Analysis failed", variant: "destructive" });
-    } finally {
-      setIsSummarizing(false);
-    }
   };
 
   const toggleBlockStatus = (visitorId: string, currentStatus: boolean) => {
@@ -420,34 +397,6 @@ export default function AdminDashboard() {
                 </CardHeader>
               </Card>
             </div>
-
-            <Card className="border-emerald-100 shadow-sm bg-white overflow-hidden">
-              <CardHeader className="bg-[#1B4332] text-white py-4 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-emerald-300" /> AI Trend Analysis
-                </CardTitle>
-                <Button 
-                  onClick={generateAiSummary} 
-                  disabled={isSummarizing || !filteredLogs.length}
-                  className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold h-8 px-4 rounded-lg text-xs"
-                >
-                  {isSummarizing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <TrendingUp className="mr-2 h-3 w-3" />}
-                  Analyze Filtered Set
-                </Button>
-              </CardHeader>
-              <CardContent className="p-6">
-                {aiSummary ? (
-                  <div className="text-sm text-emerald-900 leading-relaxed font-medium bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
-                    {aiSummary}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                    <TrendingUp className="h-12 w-12 text-emerald-100 mb-4" />
-                    <p className="text-xs">Click "Analyze Filtered Set" for a natural language summary of the current filters.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
         )}
 
