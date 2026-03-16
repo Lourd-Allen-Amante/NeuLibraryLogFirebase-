@@ -264,11 +264,11 @@ export default function AdminDashboard() {
     pdfDoc.text(`Generated: ${format(now, 'MMM d, yyyy HH:mm')}`, 14, 38);
 
     const tableData = exportLogs.map(log => [
-      log.visitorName,
-      log.schoolId,
-      log.visitorType,
-      log.college,
-      log.purpose,
+      log.visitorName || 'N/A',
+      log.schoolId || 'N/A',
+      log.visitorType || 'Student',
+      log.college || 'N/A',
+      log.purpose || 'N/A',
       format(parseISO(log.entryDateTime), 'MMM d, HH:mm')
     ]);
 
@@ -539,13 +539,16 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedLogs.filter(l => l.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) || l.schoolId.includes(searchQuery)).map((log) => (
+                  {sortedLogs.filter(l => 
+                    (l.visitorName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+                    (l.schoolId || '').includes(searchQuery)
+                  ).map((log) => (
                     <TableRow key={log.id} className="hover:bg-emerald-50/10 border-emerald-50 group">
-                      <TableCell className="font-bold text-[#1B4332]">{log.visitorName}</TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">{log.schoolId}</TableCell>
-                      <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose}</TableCell>
-                      <TableCell className="text-xs">{log.college}</TableCell>
-                      <TableCell><Badge variant="secondary" className="text-[9px] font-bold">{log.visitorType}</Badge></TableCell>
+                      <TableCell className="font-bold text-[#1B4332]">{log.visitorName || 'N/A'}</TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground">{log.schoolId || 'N/A'}</TableCell>
+                      <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose || 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{log.college || 'N/A'}</TableCell>
+                      <TableCell><Badge variant="secondary" className="text-[9px] font-bold">{log.visitorType || 'Student'}</Badge></TableCell>
                       <TableCell className="text-[10px] font-mono text-muted-foreground text-right">{format(parseISO(log.entryDateTime), 'MMM d, HH:mm')}</TableCell>
                     </TableRow>
                   ))}
@@ -574,10 +577,13 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allVisitors?.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.schoolId.includes(searchQuery)).map((visitor) => (
+                    {allVisitors?.filter(v => 
+                      (v.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+                      (v.schoolId || '').includes(searchQuery)
+                    ).map((visitor) => (
                       <TableRow key={visitor.id} className="border-emerald-50">
-                        <TableCell className="font-bold text-emerald-900 text-xs">{visitor.name}</TableCell>
-                        <TableCell className="text-xs font-mono">{visitor.schoolId}</TableCell>
+                        <TableCell className="font-bold text-emerald-900 text-xs">{visitor.name || 'N/A'}</TableCell>
+                        <TableCell className="text-xs font-mono">{visitor.schoolId || 'N/A'}</TableCell>
                         <TableCell><Badge className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full", visitor.isBlocked ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600")}>{visitor.isBlocked ? "BLOCKED" : "ACTIVE"}</Badge></TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" className={cn("text-[10px] font-bold h-7 px-4 rounded-md", visitor.isBlocked ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" : "text-rose-600 hover:text-rose-700 hover:bg-rose-50")} onClick={() => {
