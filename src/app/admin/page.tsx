@@ -10,12 +10,10 @@ import {
   Search,
   Sparkles,
   Loader2,
-  CheckCircle,
-  FileDown,
   UserPlus,
   Filter,
-  Calendar as CalendarIcon,
-  X
+  FileDown,
+  LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +35,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
 import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -46,8 +50,10 @@ import { collection, doc, setDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { startOfDay, endOfDay, parseISO, subDays, format, isWithinInterval, isSameDay, startOfWeek, endOfWeek } from 'date-fns';
+import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -55,6 +61,7 @@ export default function AdminDashboard() {
   const { user: authUser } = useUser();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   
   // Filtering States
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('all');
@@ -109,7 +116,7 @@ export default function AdminDashboard() {
 
         return dateMatch && purposeMatch && collegeMatch && typeMatch;
       })
-      // Sorted by most recent timestamp first (latest visits at the top)
+      // Sorted by most recent timestamp first
       .sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
   }, [logs, dateFilter, purposeFilter, collegeFilter, typeFilter]);
 
@@ -118,7 +125,6 @@ export default function AdminDashboard() {
     const students = filteredLogs.filter(l => l.visitorType === 'Student').length;
     const employees = filteredLogs.filter(l => ['Faculty', 'Staff'].includes(l.visitorType)).length;
     
-    // Most popular purpose in filtered set
     const purposeCounts = filteredLogs.reduce((acc: any, curr) => {
       acc[curr.purpose] = (acc[curr.purpose] || 0) + 1;
       return acc;
@@ -134,7 +140,6 @@ export default function AdminDashboard() {
     return Array.from(colleges).sort();
   }, [logs]);
 
-  // Auto Capitalize Helper (Every word)
   const handleNameInput = (val: string) => {
     const formatted = val
       .split(' ')
@@ -143,13 +148,74 @@ export default function AdminDashboard() {
     setFormName(formatted);
   };
 
-  // Auto Dash ID Helper (00-00000-000)
   const handleIdInput = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
     let formatted = digits;
     if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
     if (digits.length > 7) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 7)}-${digits.slice(7)}`;
     setFormSchoolId(formatted);
+  };
+
+  const handleExportPdf = (period: 'today' | 'week' | 'month') => {
+    if (!logs || logs.length === 0) {
+      toast({ title: "No data to export", variant: "destructive" });
+      return;
+    }
+
+    setIsExporting(true);
+    const now = new Date();
+    let exportLogs = logs;
+
+    if (period === 'today') {
+      exportLogs = logs.filter(l => isSameDay(parseISO(l.entryDateTime), now));
+    } else if (period === 'week') {
+      exportLogs = logs.filter(l => isWithinInterval(parseISO(l.entryDateTime), { start: subDays(now, 7), end: now }));
+    } else if (period === 'month') {
+      exportLogs = logs.filter(l => isWithinInterval(parseISO(l.entryDateTime), { start: subDays(now, 30), end: now }));
+    }
+
+    // Sort export logs most recent first
+    exportLogs.sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
+
+    if (exportLogs.length === 0) {
+      toast({ title: `No entries found for ${period}`, variant: "destructive" });
+      setIsExporting(false);
+      return;
+    }
+
+    const doc = new jsPDF();
+    const title = `NEU Library Visitor Log - ${period.toUpperCase()}`;
+    const dateStr = format(now, 'MMMM d, yyyy HH:mm');
+
+    doc.setFontSize(18);
+    doc.setTextColor(27, 67, 50); // #1B4332
+    doc.text("New Era University Library", 14, 20);
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(title, 14, 30);
+    doc.text(`Generated on: ${dateStr}`, 14, 38);
+
+    const tableData = exportLogs.map(log => [
+      log.visitorName,
+      log.schoolId,
+      log.visitorType,
+      log.college,
+      log.purpose,
+      format(parseISO(log.entryDateTime), 'MMM d, HH:mm')
+    ]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Visitor Name', 'School ID', 'Type', 'College', 'Purpose', 'Timestamp']],
+      body: tableData,
+      headStyles: { fillColor: [27, 67, 50] },
+      styles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [240, 253, 244] },
+    });
+
+    doc.save(`NEU_Library_Logs_${period}_${format(now, 'yyyyMMdd')}.pdf`);
+    setIsExporting(false);
+    toast({ title: "PDF Exported Successfully" });
   };
 
   const generateAiSummary = async () => {
@@ -274,7 +340,6 @@ export default function AdminDashboard() {
       <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            {/* Filtering Controls */}
             <Card className="border-emerald-100 shadow-sm">
               <CardHeader className="pb-3 border-b border-emerald-50">
                 <CardTitle className="text-sm font-bold flex items-center gap-2 text-emerald-900">
@@ -329,7 +394,6 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
 
-            {/* Statistics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="border-emerald-100 shadow-sm bg-white">
                 <CardHeader className="pb-2">
@@ -395,10 +459,23 @@ export default function AdminDashboard() {
                 <Badge variant="outline" className="text-emerald-700 border-emerald-100">{filteredLogs.length} Results</Badge>
                 <Input 
                   placeholder="Search logs..." 
-                  className="w-64 h-9 text-xs rounded-lg border-emerald-100"
+                  className="w-48 h-9 text-xs rounded-lg border-emerald-100"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                 />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-9 text-xs font-bold border-emerald-100 text-emerald-700" disabled={isExporting}>
+                      {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <FileDown className="mr-2 h-3 w-3" />}
+                      Export PDF
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => handleExportPdf('today')} className="text-xs font-bold">Today</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('week')} className="text-xs font-bold">Last Week</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('month')} className="text-xs font-bold">Last Month</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardHeader>
             <Table>
