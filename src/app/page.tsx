@@ -85,7 +85,7 @@ export default function LandingPage() {
           {user ? (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-white text-xs font-bold uppercase tracking-wider">{user.displayName}</p>
+                <p className="text-white text-xs font-bold uppercase tracking-wider">{user.displayName || 'User'}</p>
                 {isSuperAdmin && <p className="text-[#36BBDB] text-[10px] font-bold uppercase">System Administrator</p>}
               </div>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={handleLogout}>
@@ -94,7 +94,7 @@ export default function LandingPage() {
             </div>
           ) : (
             <Button onClick={handleGoogleLogin} disabled={isUserLoading} className="bg-[#36BBDB] hover:bg-[#2EB0D0] text-white font-bold rounded-full px-6">
-              <LogIn className="mr-2 h-4 w-4" /> Sign In
+              <LogIn className="mr-2 h-4 w-4" /> Admin Login
             </Button>
           )}
         </div>
@@ -112,7 +112,7 @@ export default function LandingPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {/* Visitor Terminal Card */}
+          {/* Visitor Terminal Card - No Login Required */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <DoorOpen className="h-32 w-32 text-[#264D73]" />
@@ -125,11 +125,10 @@ export default function LandingPage() {
               <CardDescription className="text-lg">Daily session check-in</CardDescription>
             </CardHeader>
             <CardContent className="p-8">
-              <Link href={user ? "/visitor" : "#"}>
+              <Link href="/visitor">
                 <Button 
                   size="lg" 
                   className="w-full h-16 text-xl font-headline bg-[#36BBDB] hover:bg-[#2EB0D0] rounded-2xl shadow-lg"
-                  onClick={() => !user && handleGoogleLogin()}
                 >
                   Launch Terminal <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
@@ -137,7 +136,7 @@ export default function LandingPage() {
             </CardContent>
           </Card>
 
-          {/* Admin Console Card */}
+          {/* Admin Console Card - Still requires login */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <ShieldCheck className="h-32 w-32 text-[#264D73]" />
@@ -157,7 +156,7 @@ export default function LandingPage() {
                   className="w-full h-16 text-xl font-headline border-2 border-[#264D73] text-[#264D73] hover:bg-[#264D73]/5 rounded-2xl"
                   onClick={() => !user && handleGoogleLogin()}
                 >
-                  Open Dashboard
+                  {user ? "Open Dashboard" : "Sign In to Access"}
                 </Button>
               </Link>
             </CardContent>
@@ -166,7 +165,7 @@ export default function LandingPage() {
 
         {!user && (
           <p className="mt-8 text-blue-200 text-sm font-medium animate-pulse">
-            Sign in with your @neu.edu.ph account to continue.
+            Terminal open for all students. Admin login required for dashboard.
           </p>
         )}
       </main>

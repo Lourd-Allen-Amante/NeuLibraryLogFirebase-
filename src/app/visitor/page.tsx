@@ -8,18 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VISIT_PURPOSES, Purpose } from '@/lib/types';
-import { CheckCircle2, Clock, DoorOpen, Scan, UserCheck, ShieldAlert, CreditCard, Keyboard } from 'lucide-react';
+import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, CreditCard, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { addDocumentNonBlocking } from '@/firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 export default function VisitorCheckIn() {
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const [step, setStep] = useState<'identify' | 'purpose' | 'welcome'>('identify');
   const [idMethod, setIdMethod] = useState<'input' | 'rfid' | null>(null);
@@ -27,7 +29,16 @@ export default function VisitorCheckIn() {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
-  // Get user profile if it exists
+  // Silent anonymous sign-in if no user is present
+  useEffect(() => {
+    if (!isUserLoading && !user && auth) {
+      signInAnonymously(auth).catch((error) => {
+        console.error("Anonymous sign-in failed:", error);
+      });
+    }
+  }, [user, isUserLoading, auth]);
+
+  // Get user profile if it exists (for logged-in admins or previous sessions)
   const userRef = useMemoFirebase(() => user ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userRef);
 
@@ -41,7 +52,6 @@ export default function VisitorCheckIn() {
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 10) value = value.slice(0, 10);
     
-    // Format: 00-00000-000
     let formatted = value;
     if (value.length > 2) formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
     if (value.length > 7) formatted = `${value.slice(0, 2)}-${value.slice(2, 7)}-${value.slice(7)}`;
@@ -72,7 +82,15 @@ export default function VisitorCheckIn() {
   };
 
   const handleCheckIn = () => {
-    if (!user || !db) return;
+    if (!user || !db) {
+      toast({
+        title: "System Not Ready",
+        description: "Please wait for the terminal to initialize.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!selectedPurpose) {
       toast({
         title: "Purpose Required",
@@ -86,9 +104,9 @@ export default function VisitorCheckIn() {
     addDocumentNonBlocking(logRef, {
       visitorId: user.uid,
       schoolId: schoolId || profile?.schoolId || 'N/A',
-      visitorName: user.displayName || 'Anonymous',
-      visitorEmail: user.email,
-      visitorType: profile?.visitorType || (user.email?.includes('neu.edu.ph') ? 'Student' : 'Guest'),
+      visitorName: user.displayName || 'Student',
+      visitorEmail: user.email || 'anonymous@terminal.neu',
+      visitorType: profile?.visitorType || (user.email?.includes('neu.edu.ph') ? 'Student' : 'Student'),
       college: profile?.collegeOrOffice || 'General',
       purpose: selectedPurpose,
       entryDateTime: new Date().toISOString()
@@ -103,15 +121,10 @@ export default function VisitorCheckIn() {
     }, 5000);
   };
 
-  if (!user) {
+  if (isUserLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F1F5F8]">
-        <Card className="p-8 text-center shadow-xl border-none">
-          <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <p className="text-lg font-bold text-[#264D73]">Session Required</p>
-          <p className="text-muted-foreground text-sm mt-1">Please sign in from the portal.</p>
-          <Link href="/"><Button className="mt-6 bg-[#264D73]">Back to Portal</Button></Link>
-        </Card>
+        <Loader2 className="h-10 w-10 text-[#264D73] animate-spin" />
       </div>
     );
   }
@@ -246,7 +259,7 @@ export default function VisitorCheckIn() {
                 </div>
                 <div className="space-y-4">
                   <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to NEU Library!</h1>
-                  <p className="text-2xl font-light text-blue-50 opacity-90">Validated: {user.displayName}</p>
+                  <p className="text-2xl font-light text-blue-50 opacity-90">Validated: {user?.displayName || 'Student'}</p>
                 </div>
                 <div className="pt-10">
                   <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-full text-sm font-medium">
