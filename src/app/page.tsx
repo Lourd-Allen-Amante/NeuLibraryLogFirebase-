@@ -15,7 +15,7 @@ export default function LandingPage() {
   const { toast } = useToast();
   const libraryBg = PlaceHolderImages.find(img => img.id === 'library-bg');
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
-  const { auth } = useAuth() ? { auth: useAuth() } : { auth: null };
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
   // Specific Greeting for Regular User jcesperanza@neu.edu.ph
@@ -29,7 +29,6 @@ export default function LandingPage() {
   }, [user, toast]);
 
   const handleGoogleLogin = async () => {
-    if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
@@ -43,13 +42,12 @@ export default function LandingPage() {
       toast({
         variant: "destructive",
         title: "Sign-in Error",
-        description: "Google Sign-In might not be enabled in the Firebase Console yet.",
+        description: "Google Sign-In might not be enabled in the Firebase Console or domain is not authorized.",
       });
     }
   };
 
   const handleLogout = async () => {
-    if (!auth) return;
     await signOut(auth);
     toast({
       title: "Signed Out",

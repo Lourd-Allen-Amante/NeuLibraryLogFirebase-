@@ -94,7 +94,7 @@ const CHART_COLORS = [
 export default function AdminDashboard() {
   const { toast } = useToast();
   const db = useFirestore();
-  const { user: authUser } = useUser();
+  const { user: authUser, isUserLoading: isAuthLoading } = useUser();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -117,7 +117,7 @@ export default function AdminDashboard() {
   const [formType, setFormType] = useState('Student');
 
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
-  const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRef);
+  const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRef);
 
   const logsQuery = useMemoFirebase(() => collection(db, 'visitorLogs'), [db]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
@@ -285,15 +285,26 @@ export default function AdminDashboard() {
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
   const hasAccess = !!adminRole || isSuperUser;
 
-  if (isAdminLoading || isLogsLoading || isVisitorsLoading) {
-    return <div className="flex h-screen items-center justify-center bg-[#F1F5F8]"><Loader2 className="animate-spin h-10 w-10 text-[#1B4332]" /></div>;
+  // IMPORTANT: We must wait for auth to finish loading before deciding if access is restricted
+  if (isAuthLoading || isAdminRoleLoading || isLogsLoading || isVisitorsLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F1F5F8]">
+        <div className="text-center space-y-4">
+          <Loader2 className="animate-spin h-10 w-10 text-[#1B4332] mx-auto" />
+          <p className="text-xs font-bold text-[#1B4332] animate-pulse">VERIFYING ACCESS...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!hasAccess) {
+  if (!authUser || !hasAccess) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-[#F1F5F8]">
         <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
         <h1 className="text-3xl font-headline font-bold text-[#1B4332]">Access Restricted</h1>
+        <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
+          You do not have administrative privileges. Please sign in with an authorized NEU account.
+        </p>
         <Link href="/"><Button className="mt-8 bg-[#1B4332] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
