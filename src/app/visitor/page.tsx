@@ -316,7 +316,7 @@ export default function VisitorCheckIn() {
                   <CheckCircle2 className="h-24 w-24 text-emerald-400" />
                 </div>
                 <div className="space-y-4">
-                  <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to New Era INC Library!</h1>
+                  <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to NEU Library!</h1>
                   <p className="text-2xl font-light text-emerald-50 opacity-90">Visitor Validated</p>
                 </div>
                 <div className="pt-10">

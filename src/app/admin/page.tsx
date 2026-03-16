@@ -92,7 +92,7 @@ export default function AdminDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   
   // Filtering States
-  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'all'>('all');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [purposeFilter, setPurposeFilter] = useState<string>('all');
   const [collegeFilter, setCollegeFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -129,6 +129,7 @@ export default function AdminDashboard() {
         let dateMatch = true;
         if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
         if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: startOfWeek(now), end: endOfWeek(now) });
+        if (dateFilter === 'month') dateMatch = isWithinInterval(logDate, { start: subDays(now, 30), end: now });
 
         // Category Filtering
         const purposeMatch = purposeFilter === 'all' || log.purpose === purposeFilter;
@@ -194,7 +195,7 @@ export default function AdminDashboard() {
     } else {
       // Daily trend for the interval
       const now = new Date();
-      const start = dateFilter === 'week' ? startOfWeek(now) : subDays(now, 30);
+      const start = dateFilter === 'week' ? startOfWeek(now) : (dateFilter === 'month' ? subDays(now, 30) : subDays(now, 14));
       const days = eachDayOfInterval({ start, end: now });
       
       const dayMap = days.reduce((acc: any, day) => {
@@ -372,7 +373,7 @@ export default function AdminDashboard() {
                     <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Time Period</Label>
                     <Select value={dateFilter} onValueChange={(v: any) => setDateFilter(v)}>
                       <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
-                      <SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="week">This Week</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent>
+                      <SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="week">This Week</SelectItem><SelectItem value="month">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
