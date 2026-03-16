@@ -3,14 +3,16 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, ShieldAlert } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LandingPage() {
+  const { toast } = useToast();
   const libraryBg = PlaceHolderImages.find(img => img.id === 'library-bg');
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
   const { auth } = useAuth() ? { auth: useAuth() } : { auth: null };
@@ -21,14 +23,35 @@ export default function LandingPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+      toast({
+        title: "Welcome back!",
+        description: "Successfully signed in to ScholarFlow.",
+      });
+    } catch (error: any) {
       console.error("Login failed", error);
+      if (error.code === 'auth/operation-not-allowed') {
+        toast({
+          variant: "destructive",
+          title: "Login Provider Disabled",
+          description: "Google Sign-in is not yet enabled in the Firebase Console for this project.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Sign-in Error",
+          description: error.message || "An unexpected error occurred during login.",
+        });
+      }
     }
   };
 
   const handleLogout = async () => {
     if (!auth) return;
     await signOut(auth);
+    toast({
+      title: "Signed Out",
+      description: "You have been securely logged out.",
+    });
   };
 
   const isSuperAdmin = user?.email === 'jcesperanza@neu.edu.ph';
