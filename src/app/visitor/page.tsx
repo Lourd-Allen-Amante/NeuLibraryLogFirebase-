@@ -138,7 +138,7 @@ export default function VisitorCheckIn() {
             <Card className="shadow-2xl border-none overflow-hidden">
               <div className="bg-[#264D73] p-10 text-center text-white">
                 <h2 className="text-3xl font-headline font-bold mb-2">Identification</h2>
-                <p className="text-blue-100/70">Welcome, {user.displayName?.split(' ')[0]}. How will you identify today?</p>
+                <p className="text-blue-100/70">Welcome, Student. How will you identify today?</p>
               </div>
               <CardContent className="p-10 space-y-8 bg-white">
                 {!idMethod ? (
@@ -201,7 +201,7 @@ export default function VisitorCheckIn() {
           {step === 'purpose' && (
             <Card className="shadow-2xl border-none">
               <CardHeader className="bg-[#264D73] text-white rounded-t-lg text-center py-10">
-                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, {user.displayName?.split(' ')[0]}!</CardTitle>
+                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, Student!</CardTitle>
                 <CardDescription className="text-blue-100 text-lg">Select your purpose for visiting today</CardDescription>
               </CardHeader>
               <CardContent className="p-10 space-y-8 bg-white">
