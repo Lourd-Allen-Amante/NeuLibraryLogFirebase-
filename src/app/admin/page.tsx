@@ -79,7 +79,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DateRange } from "react-day-picker";
 
@@ -260,14 +260,14 @@ export default function AdminDashboard() {
     // Sort export logs Newest to Oldest
     exportLogs.sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
 
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.setTextColor(27, 67, 50);
-    doc.text("New Era INC Library", 14, 20);
-    doc.setFontSize(12);
-    doc.setTextColor(100);
-    doc.text(`Visitor Log Report - ${period.toUpperCase()}`, 14, 30);
-    doc.text(`Generated: ${format(now, 'MMM d, yyyy HH:mm')}`, 14, 38);
+    const pdfDoc = new jsPDF();
+    pdfDoc.setFontSize(18);
+    pdfDoc.setTextColor(27, 67, 50);
+    pdfDoc.text("New Era INC Library", 14, 20);
+    pdfDoc.setFontSize(12);
+    pdfDoc.setTextColor(100);
+    pdfDoc.text(`Visitor Log Report - ${period.toUpperCase()}`, 14, 30);
+    pdfDoc.text(`Generated: ${format(now, 'MMM d, yyyy HH:mm')}`, 14, 38);
 
     const tableData = exportLogs.map(log => [
       log.visitorName,
@@ -278,7 +278,7 @@ export default function AdminDashboard() {
       format(parseISO(log.entryDateTime), 'MMM d, HH:mm')
     ]);
 
-    autoTable(doc, {
+    autoTable(pdfDoc, {
       startY: 45,
       head: [['Visitor Name', 'School ID', 'Type', 'College', 'Purpose', 'Timestamp']],
       body: tableData,
@@ -286,7 +286,7 @@ export default function AdminDashboard() {
       styles: { fontSize: 8 },
     });
 
-    doc.save(`NEU_Library_Logs_${period}_${format(now, 'yyyyMMdd')}.pdf`);
+    pdfDoc.save(`NEU_Library_Logs_${period}_${format(now, 'yyyyMMdd')}.pdf`);
     setIsExporting(false);
     toast({ title: "PDF Exported Successfully" });
   };
