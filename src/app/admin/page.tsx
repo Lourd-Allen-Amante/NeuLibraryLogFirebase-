@@ -16,7 +16,8 @@ import {
   PieChart as PieChartIcon,
   BarChart3,
   Calendar as CalendarIcon,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -284,15 +285,14 @@ export default function AdminDashboard() {
     toast({ title: "PDF Exported Successfully" });
   };
 
-  // SUPERUSER CHECK
   const isSuperUser = useMemo(() => {
     if (!authUser?.email) return false;
     const email = authUser.email.toLowerCase();
     
     const superusers = [
       'jcesperanza@neu.edu.ph',
-      'jcezperanza@neu.edu.ph', // Support 'z' typo variant
-      'jceperanza@neu.edu.ph',  // Support missing 's' typo variant
+      'jcezperanza@neu.edu.ph',
+      'jceperanza@neu.edu.ph',
       'lourdallen.amante@neu.edu.ph'
     ];
     
@@ -321,15 +321,11 @@ export default function AdminDashboard() {
           You do not have administrative privileges. Please sign in with an authorized NEU account.
         </p>
         
-        {/* DEBUG INFO FOR USER */}
         <div className="mt-8 p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3 text-left max-w-md mx-auto">
           <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">Debug Session Info</p>
             <p className="text-sm text-rose-700">Logged in as: <span className="font-bold underline">{authUser?.email || 'Guest (Anonymous)'}</span></p>
-            <p className="text-[10px] text-rose-600 mt-2 italic leading-relaxed">
-              If the email above doesn't match the authorized list exactly (including spelling), access will be denied. Check for typos in your Firebase Console.
-            </p>
           </div>
         </div>
 
@@ -349,6 +345,11 @@ export default function AdminDashboard() {
           </div>
         </div>
         <nav className="flex items-center gap-1">
+          <Link href="/">
+            <Button variant="ghost" className="text-white/60 hover:text-white text-xs font-bold px-4 h-10 rounded-lg">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Portal
+            </Button>
+          </Link>
           <Button variant="ghost" className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'overview' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")} onClick={() => setActiveTab('overview')}><LayoutDashboard className="mr-2 h-4 w-4" /> Statistics</Button>
           <Button variant="ghost" className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'logs' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")} onClick={() => setActiveTab('logs')}><ClipboardList className="mr-2 h-4 w-4" /> Visitor Logs</Button>
           <Button variant="ghost" className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'manage' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")} onClick={() => setActiveTab('manage')}><Users className="mr-2 h-4 w-4" /> Manage Visitors</Button>
@@ -418,7 +419,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Purpose</Label>
-                    <Select value={purposeFilter} onValueChange={setPurposeFilter}>
+                    <Select value={purposeFilter} onValueChange={purposeFilter => setPurposeFilter(purposeFilter)}>
                       <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
                       <SelectContent><SelectItem value="all">All Activities</SelectItem>{VISIT_PURPOSES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                     </Select>
