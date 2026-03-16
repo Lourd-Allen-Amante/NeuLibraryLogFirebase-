@@ -7,6 +7,7 @@
       "type": "object",
       "properties": {
         "id": { "type": "string", "description": "Firebase Auth UID" },
+        "schoolId": { "type": "string", "description": "Institutional ID number (00-00000-000)" },
         "name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "collegeOrOffice": { "type": "string", "description": "Institutional affiliation" },
@@ -22,6 +23,7 @@
       "type": "object",
       "properties": {
         "visitorId": { "type": "string" },
+        "schoolId": { "type": "string" },
         "visitorName": { "type": "string" },
         "visitorEmail": { "type": "string" },
         "visitorType": { "type": "string", "description": "Student or Employee classification" },

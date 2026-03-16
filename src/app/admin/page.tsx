@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -20,7 +21,6 @@ import {
   Search,
   Filter,
   MoreVertical,
-  Unlock,
   Sparkles,
   Loader2,
   Trash2,
@@ -28,7 +28,8 @@ import {
   LogOut,
   FileDown,
   Calendar as CalendarIcon,
-  Download
+  Download,
+  CreditCard
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,9 +48,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { 
   Select,
@@ -107,8 +106,10 @@ export default function AdminDashboard() {
       const inDateRange = (!dateRange.from || logDate >= startOfDay(dateRange.from)) && 
                          (!dateRange.to || logDate <= endOfDay(dateRange.to));
       
-      const matchesSearch = log.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           log.college.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = 
+        log.visitorName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        log.college?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.schoolId?.includes(searchQuery);
       
       const matchesPurpose = purposeFilter === 'All' || log.purpose === purposeFilter;
       const matchesCollege = collegeFilter === 'All' || log.college === collegeFilter;
@@ -188,9 +189,9 @@ export default function AdminDashboard() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-[#F1F5F8]">
         <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
-        <h1 className="text-3xl font-headline font-bold text-[#264D73]">Administrative Authorization Required</h1>
-        <p className="text-muted-foreground mt-2 max-w-md">This area is restricted to Library Personnel. If you believe this is an error, contact the IT department.</p>
-        <Link href="/"><Button className="mt-8 bg-[#264D73] h-12 px-8">Return to Terminal</Button></Link>
+        <h1 className="text-3xl font-headline font-bold text-[#264D73]">Access Restricted</h1>
+        <p className="text-muted-foreground mt-2 max-w-md">This area is for Library Personnel only.</p>
+        <Link href="/"><Button className="mt-8 bg-[#264D73] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
   }
@@ -207,7 +208,7 @@ export default function AdminDashboard() {
           </div>
           
           <nav className="space-y-4">
-            <div className="text-xs font-bold text-white/40 uppercase tracking-widest mb-4">Management</div>
+            <div className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">Management</div>
             <Button variant="ghost" className="w-full justify-start text-white bg-white/10 font-bold h-12 rounded-xl">
               <LayoutDashboard className="mr-3 h-5 w-5 text-[#36BBDB]" /> Overview
             </Button>
@@ -229,7 +230,7 @@ export default function AdminDashboard() {
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-bold truncate">{authUser?.displayName}</p>
-              <p className="text-xs text-[#36BBDB] font-medium">Chief Librarian</p>
+              <p className="text-[10px] text-[#36BBDB] font-bold uppercase tracking-wider">Librarian</p>
             </div>
           </div>
         </div>
@@ -259,7 +260,7 @@ export default function AdminDashboard() {
                <Users className="h-16 w-16" />
             </div>
             <CardHeader className="pb-2">
-              <CardDescription className="font-bold text-xs uppercase tracking-wider">Filtered Volume</CardDescription>
+              <CardDescription className="font-bold text-[10px] uppercase tracking-[0.2em]">Filtered Volume</CardDescription>
               <CardTitle className="text-4xl font-headline text-[#264D73]">{stats.total}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -271,7 +272,7 @@ export default function AdminDashboard() {
           
           <Card className="border-none shadow-md bg-[#264D73] text-white">
             <CardHeader className="pb-2">
-              <CardDescription className="text-blue-100 font-bold text-xs uppercase tracking-wider">Today's Entries</CardDescription>
+              <CardDescription className="text-blue-100 font-bold text-[10px] uppercase tracking-[0.2em]">Today's Entries</CardDescription>
               <CardTitle className="text-4xl font-headline">{stats.countToday}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -281,7 +282,7 @@ export default function AdminDashboard() {
 
           <Card className="border-none shadow-md bg-white">
             <CardHeader className="pb-2">
-              <CardDescription className="font-bold text-xs uppercase tracking-wider">Peak Purpose</CardDescription>
+              <CardDescription className="font-bold text-[10px] uppercase tracking-[0.2em]">Peak Purpose</CardDescription>
               <CardTitle className="text-xl font-headline text-[#264D73] truncate">{stats.topPurpose}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -291,7 +292,7 @@ export default function AdminDashboard() {
 
           <Card className="border-none shadow-md bg-[#36BBDB] text-white">
             <CardHeader className="pb-2">
-              <CardDescription className="text-blue-50 font-bold text-xs uppercase tracking-wider">System Status</CardDescription>
+              <CardDescription className="text-blue-50 font-bold text-[10px] uppercase tracking-[0.2em]">System Status</CardDescription>
               <CardTitle className="text-2xl font-headline flex items-center gap-2">
                 <CheckCircle className="h-6 w-6" /> Operational
               </CardTitle>
@@ -311,15 +312,15 @@ export default function AdminDashboard() {
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="space-y-2 lg:col-span-1">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">Search Visitor</Label>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Search Visitor</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Name or College..." className="pl-10 h-11 border-slate-200 rounded-xl" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                  <Input placeholder="Name, ID or College..." className="pl-10 h-11 border-slate-200 rounded-xl" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">Date Range</Label>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Date Range</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full h-11 justify-start text-left font-normal rounded-xl">
@@ -341,7 +342,7 @@ export default function AdminDashboard() {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">Purpose of Visit</Label>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Purpose</Label>
                 <Select value={purposeFilter} onValueChange={setPurposeFilter}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Reasons" /></SelectTrigger>
                   <SelectContent>
@@ -355,7 +356,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">College</Label>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">College</Label>
                 <Select value={collegeFilter} onValueChange={setCollegeFilter}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Colleges" /></SelectTrigger>
                   <SelectContent>
@@ -370,7 +371,7 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase">Visitor Classification</Label>
+                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Classification</Label>
                 <Select value={visitorTypeFilter} onValueChange={setVisitorTypeFilter}>
                   <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Any Status" /></SelectTrigger>
                   <SelectContent>
@@ -381,48 +382,16 @@ export default function AdminDashboard() {
                 </Select>
               </div>
             </div>
-            
-            <div className="mt-6 pt-6 border-t flex justify-end gap-3">
-              <Button variant="ghost" className="rounded-xl h-11" onClick={() => {
-                setPurposeFilter('All');
-                setCollegeFilter('All');
-                setVisitorTypeFilter('All');
-                setSearchQuery('');
-                setDateRange({ from: subDays(new Date(), 7), to: new Date() });
-              }}>Reset Workspace</Button>
-            </div>
           </CardContent>
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-10">
-            <Card className="border-none shadow-md bg-white">
-              <CardHeader>
-                <CardTitle className="font-headline text-2xl text-[#264D73]">Attendance Volumetrics</CardTitle>
-                <CardDescription>Visualizing daily library entry fluctuations over the last 7 days</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[400px] mt-6">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsBarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 13, fontWeight: 500}} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 13}} dx={-10} />
-                    <RechartsTooltip cursor={{fill: '#F1F5F9'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                    <Bar dataKey="visitors" fill="#264D73" radius={[8, 8, 0, 0]} barSize={40}>
-                       {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === 6 ? '#36BBDB' : '#264D73'} />
-                      ))}
-                    </Bar>
-                  </RechartsBarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
             <Card className="border-none shadow-md bg-white overflow-hidden">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="font-headline text-2xl text-[#264D73]">Detailed Visitation Logs</CardTitle>
-                  <CardDescription>Comprehensive ledger of institutional access</CardDescription>
+                  <CardTitle className="font-headline text-2xl text-[#264D73]">Visitation Logs</CardTitle>
+                  <CardDescription>Comprehensive ledger of library access</CardDescription>
                 </div>
                 <Badge variant="secondary" className="px-3 py-1 text-sm">{filteredLogs.length} Records</Badge>
               </CardHeader>
@@ -430,12 +399,12 @@ export default function AdminDashboard() {
                 <Table>
                   <TableHeader className="bg-slate-50/50">
                     <TableRow>
-                      <TableHead className="font-bold py-5 pl-8 text-xs uppercase tracking-widest">Visitor Info</TableHead>
-                      <TableHead className="font-bold text-xs uppercase tracking-widest">Status</TableHead>
-                      <TableHead className="font-bold text-xs uppercase tracking-widest">Institution</TableHead>
-                      <TableHead className="font-bold text-xs uppercase tracking-widest">Activity</TableHead>
-                      <TableHead className="font-bold text-xs uppercase tracking-widest">Timestamp</TableHead>
-                      <TableHead className="text-right pr-8 font-bold text-xs uppercase tracking-widest">Mgmt</TableHead>
+                      <TableHead className="font-bold py-5 pl-8 text-[10px] uppercase tracking-widest">Visitor Info</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">ID / Status</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Institution</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Activity</TableHead>
+                      <TableHead className="font-bold text-[10px] uppercase tracking-widest">Timestamp</TableHead>
+                      <TableHead className="text-right pr-8 font-bold text-[10px] uppercase tracking-widest">Mgmt</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -446,21 +415,26 @@ export default function AdminDashboard() {
                           <div className="text-xs text-muted-foreground">{log.visitorEmail}</div>
                         </TableCell>
                         <TableCell>
-                           <Badge className={cn(
-                             "font-bold text-[10px] rounded-md px-2 py-0.5",
-                             log.visitorType === 'Student' ? 'bg-blue-100 text-blue-700 hover:bg-blue-100' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                           )}>
-                             {log.visitorType?.toUpperCase()}
-                           </Badge>
+                           <div className="flex flex-col gap-1">
+                             <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-[#264D73]">
+                               <CreditCard className="h-3 w-3 text-[#36BBDB]" /> {log.schoolId || 'N/A'}
+                             </div>
+                             <Badge className={cn(
+                               "font-bold text-[9px] rounded-md px-1.5 py-0",
+                               log.visitorType === 'Student' ? 'bg-blue-100 text-blue-700 hover:bg-blue-100' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                             )}>
+                               {log.visitorType?.toUpperCase()}
+                             </Badge>
+                           </div>
                         </TableCell>
                         <TableCell className="text-sm font-medium text-slate-600">{log.college}</TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1 text-sm font-semibold text-[#264D73]">
+                          <div className="flex items-center gap-1 text-xs font-semibold text-[#264D73]">
                             <div className="h-1.5 w-1.5 rounded-full bg-[#36BBDB]" />
                             {log.purpose}
                           </div>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-xs font-mono">
+                        <TableCell className="text-muted-foreground text-[10px] font-mono">
                           {format(parseISO(log.entryDateTime), 'MMM d, yyyy')}<br/>
                           <span className="font-bold">{format(parseISO(log.entryDateTime), 'hh:mm a')}</span>
                         </TableCell>
@@ -484,18 +458,12 @@ export default function AdminDashboard() {
                           <div className="flex flex-col items-center gap-2">
                             <Search className="h-10 w-10 text-slate-200 mb-2" />
                             <p className="text-slate-400 font-medium">No results found for current filter configuration</p>
-                            <Button variant="link" className="text-[#36BBDB]" onClick={() => setSearchQuery('')}>Clear search</Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
-                {filteredLogs.length > 20 && (
-                  <div className="p-4 text-center border-t">
-                    <Button variant="ghost" className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Load More Entries</Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
@@ -507,20 +475,17 @@ export default function AdminDashboard() {
                 <CardTitle className="font-headline text-2xl flex items-center gap-2 text-[#264D73]">
                   <Sparkles className="h-6 w-6 text-[#36BBDB]" /> AI Trend Analysis
                 </CardTitle>
-                <CardDescription>Generative summary of current filtered datasets</CardDescription>
+                <CardDescription>Generative summary of current results</CardDescription>
               </CardHeader>
               <CardContent>
                 {isSummarizing ? (
                   <div className="flex flex-col items-center py-12">
-                    <div className="relative h-16 w-16 mb-4">
-                       <Loader2 className="h-16 w-16 text-[#36BBDB] animate-spin absolute" />
-                       <Sparkles className="h-8 w-8 text-[#264D73] absolute top-4 left-4" />
-                    </div>
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest animate-pulse">Processing Patterns...</p>
+                    <Loader2 className="h-12 w-12 text-[#36BBDB] animate-spin mb-4" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Processing Patterns...</p>
                   </div>
                 ) : aiSummary ? (
                   <div className="space-y-6">
-                    <div className="p-6 bg-[#F1F5F8] rounded-2xl border border-slate-200 leading-relaxed text-slate-700 italic">
+                    <div className="p-6 bg-[#F1F5F8] rounded-2xl border border-slate-200 leading-relaxed text-slate-700 italic text-sm">
                       "{aiSummary}"
                     </div>
                     <Button variant="outline" className="w-full border-slate-200 text-slate-500 hover:text-[#264D73]" onClick={generateAiSummary}>
@@ -529,10 +494,8 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="text-center py-10">
-                    <div className="bg-slate-50 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-4">
-                      <TrendingUp className="h-8 w-8 text-slate-300" />
-                    </div>
-                    <p className="text-sm text-slate-500 mb-6 font-medium">Click to generate a natural language summary of the current filtered results.</p>
+                    <TrendingUp className="h-8 w-8 text-slate-300 mx-auto mb-4" />
+                    <p className="text-sm text-slate-500 mb-6 font-medium">Click to generate a natural language summary of the visitor trends.</p>
                     <Button className="w-full bg-[#264D73] hover:bg-[#264D73]/90 h-12 rounded-xl" onClick={generateAiSummary} disabled={!filteredLogs.length}>
                       Analyze Current View
                     </Button>
@@ -547,25 +510,13 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="grid grid-cols-1 gap-3">
                 <Button variant="outline" className="justify-start h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600">
-                  <Download className="mr-3 h-5 w-5 text-sky-500" /> Download Monthly CSV
+                  <Download className="mr-3 h-5 w-5 text-sky-500" /> Export Monthly CSV
                 </Button>
                 <Button variant="outline" className="justify-start h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600">
                   <ShieldAlert className="mr-3 h-5 w-5 text-rose-500" /> Manage Blacklist
                 </Button>
-                <Button variant="outline" className="justify-start h-12 rounded-xl border-slate-200 hover:bg-slate-50 text-slate-600">
-                  <CalendarIcon className="mr-3 h-5 w-5 text-amber-500" /> Shift Schedule
-                </Button>
               </CardContent>
             </Card>
-
-            <div className="p-6 bg-[#264D73]/5 rounded-2xl border border-[#264D73]/10">
-              <h4 className="font-bold text-[#264D73] text-sm mb-2 flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4" /> System Policy Reminder
-              </h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                All visitor data is strictly for institutional research and security audit purposes. Ensure data privacy protocols are followed when exporting reports.
-              </p>
-            </div>
           </div>
         </div>
       </main>

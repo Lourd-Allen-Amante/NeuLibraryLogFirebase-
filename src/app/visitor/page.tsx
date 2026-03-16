@@ -5,9 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VISIT_PURPOSES, Purpose } from '@/lib/types';
-import { CheckCircle2, Clock, DoorOpen, Scan, UserCheck, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Clock, DoorOpen, Scan, UserCheck, ShieldAlert, CreditCard, Keyboard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -20,7 +21,9 @@ export default function VisitorCheckIn() {
   const { toast } = useToast();
   const { user } = useUser();
   const db = useFirestore();
-  const [step, setStep] = useState<'scan' | 'purpose' | 'welcome'>('scan');
+  const [step, setStep] = useState<'identify' | 'purpose' | 'welcome'>('identify');
+  const [idMethod, setIdMethod] = useState<'input' | 'rfid' | null>(null);
+  const [schoolId, setSchoolId] = useState('');
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
 
@@ -34,7 +37,19 @@ export default function VisitorCheckIn() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleScanSimulation = () => {
+  const handleIdInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 10) value = value.slice(0, 10);
+    
+    // Format: 00-00000-000
+    let formatted = value;
+    if (value.length > 2) formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
+    if (value.length > 7) formatted = `${value.slice(0, 2)}-${value.slice(2, 7)}-${value.slice(7)}`;
+    
+    setSchoolId(formatted);
+  };
+
+  const validateAndProceed = () => {
     if (profile?.isBlocked) {
       toast({
         title: "Access Suspended",
@@ -43,6 +58,16 @@ export default function VisitorCheckIn() {
       });
       return;
     }
+
+    if (idMethod === 'input' && !/^\d{2}-\d{5}-\d{3}$/.test(schoolId)) {
+      toast({
+        title: "Invalid Format",
+        description: "Please enter your ID in 00-00000-000 format.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setStep('purpose');
   };
 
@@ -60,6 +85,7 @@ export default function VisitorCheckIn() {
     const logRef = collection(db, 'visitorLogs');
     addDocumentNonBlocking(logRef, {
       visitorId: user.uid,
+      schoolId: schoolId || profile?.schoolId || 'N/A',
       visitorName: user.displayName || 'Anonymous',
       visitorEmail: user.email,
       visitorType: profile?.visitorType || (user.email?.includes('neu.edu.ph') ? 'Student' : 'Guest'),
@@ -70,8 +96,10 @@ export default function VisitorCheckIn() {
 
     setStep('welcome');
     setTimeout(() => {
-      setStep('scan');
+      setStep('identify');
       setSelectedPurpose('');
+      setSchoolId('');
+      setIdMethod(null);
     }, 5000);
   };
 
@@ -80,7 +108,7 @@ export default function VisitorCheckIn() {
       <div className="min-h-screen flex items-center justify-center bg-[#F1F5F8]">
         <Card className="p-8 text-center shadow-xl border-none">
           <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <p className="text-lg font-bold text-[#264D73]">Session Expired</p>
+          <p className="text-lg font-bold text-[#264D73]">Session Required</p>
           <p className="text-muted-foreground text-sm mt-1">Please sign in from the portal.</p>
           <Link href="/"><Button className="mt-6 bg-[#264D73]">Back to Portal</Button></Link>
         </Card>
@@ -93,51 +121,79 @@ export default function VisitorCheckIn() {
       <header className="p-6 border-b bg-white flex justify-between items-center shadow-sm">
         <Link href="/" className="flex items-center gap-2 text-[#264D73] font-headline font-bold text-2xl">
           <DoorOpen className="h-8 w-8 text-[#36BBDB]" />
-          Visitor Terminal
+          Library Terminal
         </Link>
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col items-end">
-            <span className="text-xs text-muted-foreground uppercase tracking-widest font-bold">System Clock</span>
-            <div className="flex items-center gap-2 text-[#264D73] font-mono text-xl font-bold">
-              <Clock className="h-5 w-5 text-[#36BBDB]" />
-              {currentTime ? format(currentTime, 'hh:mm:ss aa') : '--:--:--'}
-            </div>
+        <div className="flex flex-col items-end">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold">Terminal Clock</span>
+          <div className="flex items-center gap-2 text-[#264D73] font-mono text-xl font-bold">
+            <Clock className="h-5 w-5 text-[#36BBDB]" />
+            {currentTime ? format(currentTime, 'hh:mm:ss aa') : '--:--:--'}
           </div>
         </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
-          {step === 'scan' && (
+          {step === 'identify' && (
             <Card className="shadow-2xl border-none overflow-hidden">
-              <div className="bg-[#264D73] p-12 text-center text-white">
-                <div className="mx-auto bg-white/10 p-6 rounded-full w-fit mb-6 backdrop-blur-md">
-                   <Scan className="h-16 w-16 animate-pulse" />
-                </div>
-                <h2 className="text-3xl font-headline font-bold mb-2">ID Verification</h2>
-                <p className="text-blue-100/70 italic">Please scan your institutional ID to continue.</p>
+              <div className="bg-[#264D73] p-10 text-center text-white">
+                <h2 className="text-3xl font-headline font-bold mb-2">Identification</h2>
+                <p className="text-blue-100/70">Welcome, {user.displayName?.split(' ')[0]}. How will you identify today?</p>
               </div>
-              <CardContent className="p-12 flex flex-col items-center gap-8 bg-white">
-                <div className="flex items-center gap-4 p-5 bg-blue-50/50 rounded-2xl w-full border border-blue-100">
-                  <div className="bg-primary/10 p-3 rounded-xl">
-                    <UserCheck className="h-8 w-8 text-primary" />
+              <CardContent className="p-10 space-y-8 bg-white">
+                {!idMethod ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="h-40 flex flex-col gap-4 rounded-3xl border-2 hover:border-[#36BBDB] hover:bg-cyan-50/50"
+                      onClick={() => setIdMethod('input')}
+                    >
+                      <Keyboard className="h-12 w-12 text-[#264D73]" />
+                      <span className="font-bold text-lg">Input School ID</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="h-40 flex flex-col gap-4 rounded-3xl border-2 hover:border-[#36BBDB] hover:bg-cyan-50/50"
+                      onClick={() => setIdMethod('rfid')}
+                    >
+                      <CreditCard className="h-12 w-12 text-[#264D73]" />
+                      <span className="font-bold text-lg">Tap ID Card (RFID)</span>
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Identified As</p>
-                    <p className="font-headline font-bold text-xl text-[#264D73]">{user.displayName}</p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
+                ) : (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                    {idMethod === 'input' ? (
+                      <div className="space-y-4">
+                        <Label className="text-lg font-bold text-[#264D73]">Enter School ID Number</Label>
+                        <Input 
+                          placeholder="00-00000-000" 
+                          value={schoolId}
+                          onChange={handleIdInput}
+                          className="h-16 text-3xl text-center font-mono tracking-widest border-2 focus:border-[#36BBDB] rounded-2xl"
+                          autoFocus
+                        />
+                      </div>
+                    ) : (
+                      <div className="py-12 flex flex-col items-center justify-center bg-blue-50/50 rounded-3xl border-2 border-dashed border-[#36BBDB] group cursor-pointer" onClick={() => validateAndProceed()}>
+                        <div className="relative">
+                          <Scan className="h-24 w-24 text-[#36BBDB] animate-pulse" />
+                          <CreditCard className="h-12 w-12 text-[#264D73] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform" />
+                        </div>
+                        <p className="mt-6 text-xl font-bold text-[#264D73]">Place ID card near the reader</p>
+                        <p className="text-sm text-muted-foreground mt-2">(Click here to simulate tap)</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-4">
+                      <Button variant="ghost" className="h-14 flex-1 rounded-xl" onClick={() => { setIdMethod(null); setSchoolId(''); }}>Back</Button>
+                      {idMethod === 'input' && (
+                        <Button className="h-14 flex-[2] bg-[#36BBDB] hover:bg-[#2EB0D0] text-white text-xl font-headline rounded-xl" onClick={validateAndProceed}>
+                          Verify ID
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <Button 
-                  size="lg" 
-                  className="w-full h-20 text-xl font-headline bg-[#36BBDB] hover:bg-[#2EB0D0] shadow-lg shadow-cyan-200 rounded-2xl"
-                  onClick={handleScanSimulation}
-                >
-                  Verify & Proceed
-                </Button>
-                <Link href="/" className="text-sm text-muted-foreground hover:text-[#264D73] transition-colors">
-                  Exit to Gateway
-                </Link>
+                )}
               </CardContent>
             </Card>
           )}
@@ -161,7 +217,7 @@ export default function VisitorCheckIn() {
                         )}
                       >
                         <span className="font-headline font-bold text-xl text-[#264D73]">{purpose}</span>
-                        <span className="text-xs text-muted-foreground mt-1 uppercase tracking-widest font-bold">Category</span>
+                        <span className="text-[10px] text-muted-foreground mt-1 uppercase tracking-[0.2em] font-bold">Activity</span>
                         {selectedPurpose === purpose && (
                           <div className="absolute top-4 right-4">
                             <CheckCircle2 className="h-6 w-6 text-[#36BBDB]" />
@@ -173,7 +229,7 @@ export default function VisitorCheckIn() {
                 </RadioGroup>
 
                 <div className="flex gap-4 pt-4">
-                  <Button variant="outline" className="flex-1 h-14 text-lg rounded-xl" onClick={() => setStep('scan')}>Back</Button>
+                  <Button variant="outline" className="flex-1 h-14 text-lg rounded-xl" onClick={() => setStep('identify')}>Back</Button>
                   <Button className="flex-[2] h-14 text-xl font-headline bg-[#36BBDB] hover:bg-[#2EB0D0] rounded-xl" onClick={handleCheckIn}>
                     Record Entry
                   </Button>
@@ -183,7 +239,7 @@ export default function VisitorCheckIn() {
           )}
 
           {step === 'welcome' && (
-            <Card className="shadow-2xl border-none text-white overflow-hidden bg-[#36BBDB]">
+            <Card className="shadow-2xl border-none text-white overflow-hidden bg-[#36BBDB] animate-in zoom-in duration-300">
               <CardContent className="p-20 text-center space-y-8">
                 <div className="bg-white/20 p-8 rounded-full w-fit mx-auto backdrop-blur-md shadow-inner">
                   <CheckCircle2 className="h-24 w-24" />
@@ -204,8 +260,8 @@ export default function VisitorCheckIn() {
         </div>
       </main>
       
-      <footer className="p-6 text-center text-muted-foreground text-xs uppercase tracking-[0.2em]">
-        Official Institutional Terminal • New Era University
+      <footer className="p-6 text-center text-muted-foreground text-[10px] uppercase tracking-[0.4em]">
+        New Era University • Library Management System
       </footer>
     </div>
   );
