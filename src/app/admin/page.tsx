@@ -84,30 +84,32 @@ export default function AdminDashboard() {
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
 
-  // Logic for statistics
+  // Logic for statistics and filtering
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
     
-    return logs.filter(log => {
-      const logDate = parseISO(log.entryDateTime);
-      const now = new Date();
-      
-      // Date Filtering
-      let dateMatch = true;
-      if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
-      if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: startOfWeek(now), end: endOfWeek(now) });
+    return logs
+      .filter(log => {
+        const logDate = parseISO(log.entryDateTime);
+        const now = new Date();
+        
+        // Date Filtering
+        let dateMatch = true;
+        if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
+        if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: startOfWeek(now), end: endOfWeek(now) });
 
-      // Category Filtering
-      const purposeMatch = purposeFilter === 'all' || log.purpose === purposeFilter;
-      const collegeMatch = collegeFilter === 'all' || log.college === collegeFilter;
-      
-      // Type Filtering (Student vs Employee)
-      let typeMatch = true;
-      if (typeFilter === 'Student') typeMatch = log.visitorType === 'Student';
-      if (typeFilter === 'Employee') typeMatch = ['Faculty', 'Staff'].includes(log.visitorType);
+        // Category Filtering
+        const purposeMatch = purposeFilter === 'all' || log.purpose === purposeFilter;
+        const collegeMatch = collegeFilter === 'all' || log.college === collegeFilter;
+        
+        // Type Filtering (Student vs Employee)
+        let typeMatch = true;
+        if (typeFilter === 'Student') typeMatch = log.visitorType === 'Student';
+        if (typeFilter === 'Employee') typeMatch = ['Faculty', 'Staff'].includes(log.visitorType);
 
-      return dateMatch && purposeMatch && collegeMatch && typeMatch;
-    });
+        return dateMatch && purposeMatch && collegeMatch && typeMatch;
+      })
+      .sort((a, b) => parseISO(a.entryDateTime).getTime() - parseISO(b.entryDateTime).getTime());
   }, [logs, dateFilter, purposeFilter, collegeFilter, typeFilter]);
 
   const stats = useMemo(() => {
@@ -250,7 +252,7 @@ export default function AdminDashboard() {
             className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'logs' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
             onClick={() => setActiveTab('logs')}
           >
-            <ClipboardList className="mr-2 h-4 w-4" /> Entry Ledger
+            <ClipboardList className="mr-2 h-4 w-4" /> Visitor Logs
           </Button>
           <Button 
             variant="ghost" 
@@ -387,7 +389,7 @@ export default function AdminDashboard() {
         {activeTab === 'logs' && (
           <Card className="border-emerald-100 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
-              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Ledger</CardTitle>
+              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitor Logs</CardTitle>
               <div className="flex items-center gap-4">
                 <Badge variant="outline" className="text-emerald-700 border-emerald-100">{filteredLogs.length} Results</Badge>
                 <Input 
@@ -532,7 +534,7 @@ export default function AdminDashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Visitor Type</Label>
-                      <Select value={formType} onValueChange={formType}>
+                      <Select value={formType} onValueChange={setFormType}>
                         <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Student">Student</SelectItem>
