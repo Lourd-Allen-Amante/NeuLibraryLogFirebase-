@@ -285,6 +285,20 @@ export default function AdminDashboard() {
     toast({ title: "PDF Exported Successfully" });
   };
 
+  const handleSchoolIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, ''); // Only digits
+    if (value.length > 10) value = value.slice(0, 10);
+    
+    let formatted = value;
+    if (value.length > 2) {
+      formatted = `${value.slice(0, 2)}-${value.slice(2)}`;
+    }
+    if (value.length > 7) {
+      formatted = `${value.slice(0, 2)}-${value.slice(2, 7)}-${value.slice(7)}`;
+    }
+    setFormSchoolId(formatted);
+  };
+
   const isSuperUser = useMemo(() => {
     if (!authUser?.email) return false;
     const email = authUser.email.toLowerCase();
@@ -585,7 +599,7 @@ export default function AdminDashboard() {
                 <CardHeader className="bg-emerald-50 border-b border-emerald-100"><CardTitle className="text-md font-bold text-emerald-900">New Registration</CardTitle></CardHeader>
                 <form onSubmit={(e) => {
                   e.preventDefault();
-                  if (!/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) { toast({ title: "ID Format Error", variant: "destructive" }); return; }
+                  if (!/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) { toast({ title: "ID Format Error", description: "Format must be 00-00000-000", variant: "destructive" }); return; }
                   const newRef = doc(collection(db, 'registeredVisitors'));
                   setDoc(newRef, { id: newRef.id, name: formName, schoolId: formSchoolId, email: formEmail, collegeDepartment: formCollege, visitorType: formType, isBlocked: false });
                   toast({ title: "Patron Registered" });
@@ -593,7 +607,7 @@ export default function AdminDashboard() {
                 }}>
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label><Input value={formName} onChange={(e) => setFormName(e.target.value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '))} placeholder="e.g. Jorus Junio" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional ID</Label><Input value={formSchoolId} onChange={(e) => setFormSchoolId(e.target.value)} placeholder="00-00000-000" className="h-10 text-xs rounded-lg border-emerald-100 font-mono" required /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional ID</Label><Input value={formSchoolId} onChange={handleSchoolIdChange} placeholder="00-00000-000" className="h-10 text-xs rounded-lg border-emerald-100 font-mono" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">NEU Email</Label><Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">College</Label><Input value={formCollege} onChange={(e) => setFormCollege(e.target.value.toUpperCase())} placeholder="e.g. CICS" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Role</Label><Select value={formType} onValueChange={setFormType}><SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Student">Student</SelectItem><SelectItem value="Faculty">Faculty</SelectItem><SelectItem value="Staff">Staff</SelectItem></SelectContent></Select></div>
