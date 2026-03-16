@@ -63,13 +63,21 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('All');
   const [visitorTypeFilter, setVisitorTypeFilter] = useState('All'); 
+
+  // Form States for Add Visitor
+  const [formName, setFormName] = useState('');
+  const [formSchoolId, setFormSchoolId] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formCollege, setFormCollege] = useState('');
+  const [formType, setFormType] = useState('Student');
+
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+
   const [dateRange] = useState({
     from: subDays(new Date(), 7),
     to: new Date()
   });
-
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
 
   // Firestore Queries
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
@@ -82,6 +90,19 @@ export default function AdminDashboard() {
   const { data: allUsers, isLoading: isUsersLoading } = useCollection(usersQuery);
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
+
+  // Formatting Helpers
+  const formatName = (val: string) => {
+    return val.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  };
+
+  const formatSchoolId = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    let formatted = digits;
+    if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    if (digits.length > 7) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 7)}-${digits.slice(7)}`;
+    return formatted;
+  };
 
   // Filtering Logic
   const filteredLogs = useMemo(() => {
@@ -144,13 +165,18 @@ export default function AdminDashboard() {
 
   const handleAddVisitor = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    
+    if (formSchoolId && !/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) {
+      toast({ title: "Invalid School ID format", variant: "destructive" });
+      return;
+    }
+
     const newVisitor = {
-      name: formData.get('fullName') as string,
-      schoolId: formData.get('schoolId') as string,
-      email: formData.get('email') as string,
-      collegeOrOffice: formData.get('college') as string,
-      visitorType: formData.get('type') as string,
+      name: formName,
+      schoolId: formSchoolId,
+      email: formEmail,
+      collegeOrOffice: formCollege,
+      visitorType: formType,
       isBlocked: false,
       role: 'RegularUser'
     };
@@ -158,8 +184,14 @@ export default function AdminDashboard() {
     const newDocRef = doc(collection(db, 'users'));
     setDoc(newDocRef, { ...newVisitor, id: newDocRef.id });
     
-    toast({ title: "Visitor Added Successfully" });
-    (e.target as HTMLFormElement).reset();
+    toast({ title: "Visitor Registered Successfully" });
+    
+    // Clear Form
+    setFormName('');
+    setFormSchoolId('');
+    setFormEmail('');
+    setFormCollege('');
+    setFormType('Student');
   };
 
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
@@ -371,7 +403,11 @@ export default function AdminDashboard() {
                   <CardTitle className="text-md font-bold text-emerald-800">All Users</CardTitle>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search..." className="pl-9 h-9 w-48 text-xs rounded-lg border-emerald-100" />
+                    <Input 
+                      placeholder="Search..." 
+                      className="pl-9 h-9 w-48 text-xs rounded-lg border-emerald-100" 
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
                 </CardHeader>
                 <Table>
@@ -384,7 +420,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allUsers?.map((user) => (
+                    {allUsers?.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.schoolId.includes(searchQuery)).map((user) => (
                       <TableRow key={user.id} className="border-emerald-50">
                         <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
                         <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
@@ -422,30 +458,63 @@ export default function AdminDashboard() {
                 <Card className="border-emerald-100 shadow-sm">
                   <form onSubmit={handleAddVisitor}>
                     <CardContent className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
-                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100" required />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
-                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100" required />
-                        </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
+                        <Input 
+                          value={formName}
+                          onChange={(e) => setFormName(formatName(e.target.value))}
+                          placeholder="Juan dela Cruz" 
+                          className="h-10 text-xs rounded-lg border-emerald-100" 
+                          required 
+                        />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
-                        <Select name="type" defaultValue="Student">
-                          <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Student">Student</SelectItem>
-                            <SelectItem value="Faculty">Faculty</SelectItem>
-                            <SelectItem value="Staff">Staff</SelectItem>
-                            <SelectItem value="Guest">Guest</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
+                        <Input 
+                          value={formSchoolId}
+                          onChange={(e) => setFormSchoolId(formatSchoolId(e.target.value))}
+                          placeholder="00-00000-000" 
+                          className="h-10 text-xs rounded-lg border-emerald-100" 
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional Email</Label>
+                        <Input 
+                          type="email"
+                          value={formEmail}
+                          onChange={(e) => setFormEmail(e.target.value)}
+                          placeholder="firstname.lastname@neu.edu.ph" 
+                          className="h-10 text-xs rounded-lg border-emerald-100" 
+                          required 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">College/Dept</Label>
+                          <Input 
+                            value={formCollege}
+                            onChange={(e) => setFormCollege(e.target.value.toUpperCase())}
+                            placeholder="CICS / COE / CAS" 
+                            className="h-10 text-xs rounded-lg border-emerald-100" 
+                            required 
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
+                          <Select value={formType} onValueChange={setFormType}>
+                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Student">Student</SelectItem>
+                              <SelectItem value="Faculty">Faculty</SelectItem>
+                              <SelectItem value="Staff">Staff</SelectItem>
+                              <SelectItem value="Guest">Guest</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <Button type="submit" className="w-full bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2 shadow-lg">
-                        <UserPlus className="mr-2 h-4 w-4" /> Add Visitor
+                        <UserPlus className="mr-2 h-4 w-4" /> Register Visitor
                       </Button>
                     </CardContent>
                   </form>
