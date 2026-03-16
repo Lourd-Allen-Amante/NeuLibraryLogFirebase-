@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -61,9 +62,7 @@ export default function AdminDashboard() {
   const { user: authUser } = useUser();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
-  const [purposeFilter, setPurposeFilter] = useState('All');
-  const [visitorTypeFilter, setVisitorTypeFilter] = useState('All'); 
-
+  
   // Form States for Add Visitor
   const [formName, setFormName] = useState('');
   const [formSchoolId, setFormSchoolId] = useState('');
@@ -74,11 +73,6 @@ export default function AdminDashboard() {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
 
-  const [dateRange] = useState({
-    from: subDays(new Date(), 7),
-    to: new Date()
-  });
-
   // Firestore Queries
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRef);
@@ -86,65 +80,43 @@ export default function AdminDashboard() {
   const logsQuery = useMemoFirebase(() => collection(db, 'visitorLogs'), [db]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
-  const usersQuery = useMemoFirebase(() => collection(db, 'users'), [db]);
-  const { data: allUsers, isLoading: isUsersLoading } = useCollection(usersQuery);
+  const registeredVisitorsQuery = useMemoFirebase(() => collection(db, 'registeredVisitors'), [db]);
+  const { data: allVisitors, isLoading: isVisitorsLoading } = useCollection(registeredVisitorsQuery);
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
 
-  // Formatting Helpers
-  const formatName = (val: string) => {
-    return val.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  // Auto Capitalize Helper
+  const handleNameInput = (val: string) => {
+    const formatted = val
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+    setFormName(formatted);
   };
 
-  const formatSchoolId = (val: string) => {
+  // Auto Dash ID Helper (00-00000-000)
+  const handleIdInput = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 10);
     let formatted = digits;
     if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
     if (digits.length > 7) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 7)}-${digits.slice(7)}`;
-    return formatted;
+    setFormSchoolId(formatted);
   };
 
-  // Filtering Logic
-  const filteredLogs = useMemo(() => {
-    if (!logs) return [];
-    return logs.filter(log => {
-      const logDate = parseISO(log.entryDateTime);
-      const inDateRange = (!dateRange.from || logDate >= startOfDay(dateRange.from)) && 
-                         (!dateRange.to || logDate <= endOfDay(dateRange.to));
-      
-      const matchesSearch = 
-        log.visitorName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        log.schoolId?.includes(searchQuery);
-      
-      const matchesPurpose = purposeFilter === 'All' || log.purpose === purposeFilter;
-      const matchesType = visitorTypeFilter === 'All' || 
-                         (visitorTypeFilter === 'Employee' ? (log.visitorType === 'Faculty' || log.visitorType === 'Staff') : log.visitorType === visitorTypeFilter);
-      
-      return inDateRange && matchesSearch && matchesPurpose && matchesType;
-    });
-  }, [logs, searchQuery, purposeFilter, visitorTypeFilter, dateRange]);
-
   const stats = useMemo(() => {
-    const total = filteredLogs.length;
+    const total = logs?.length || 0;
     const today = startOfDay(new Date());
-    const countToday = filteredLogs.filter(l => startOfDay(parseISO(l.entryDateTime)).getTime() === today.getTime()).length;
-    
-    const purposes = filteredLogs.reduce((acc, l) => {
-      acc[l.purpose] = (acc[l.purpose] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    const topPurpose = Object.entries(purposes).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-
-    return { total, countToday, topPurpose };
-  }, [filteredLogs]);
+    const countToday = logs?.filter(l => startOfDay(parseISO(l.entryDateTime)).getTime() === today.getTime()).length || 0;
+    return { total, countToday };
+  }, [logs]);
 
   const generateAiSummary = async () => {
-    if (!filteredLogs.length) return;
+    if (!logs?.length) return;
     setIsSummarizing(true);
     try {
       const res = await adminVisitorTrendSummaries({
-        periodDescription: `Current filtered range`,
-        visitorEntries: filteredLogs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
+        periodDescription: `Current logs analysis`,
+        visitorEntries: logs.map(l => ({ timestamp: l.entryDateTime, purposeOfVisit: l.purpose }))
       });
       setAiSummary(res.summary);
     } catch (e) {
@@ -154,35 +126,33 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleBlockStatus = (userId: string, currentStatus: boolean) => {
-    const userRef = doc(db, 'users', userId);
-    updateDocumentNonBlocking(userRef, { isBlocked: !currentStatus });
+  const toggleBlockStatus = (visitorId: string, currentStatus: boolean) => {
+    const visitorRef = doc(db, 'registeredVisitors', visitorId);
+    updateDocumentNonBlocking(visitorRef, { isBlocked: !currentStatus });
     toast({
       title: !currentStatus ? "Visitor Blocked" : "Visitor Unblocked",
-      description: `The user status has been updated.`,
+      description: `The visitor status has been updated.`,
     });
   };
 
   const handleAddVisitor = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    if (formSchoolId && !/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) {
-      toast({ title: "Invalid School ID format", variant: "destructive" });
+    if (!/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) {
+      toast({ title: "Invalid School ID format", description: "Use 00-00000-000", variant: "destructive" });
       return;
     }
 
-    const newVisitor = {
+    const newVisitorRef = doc(collection(db, 'registeredVisitors'));
+    setDoc(newVisitorRef, {
+      id: newVisitorRef.id,
       name: formName,
       schoolId: formSchoolId,
       email: formEmail,
-      collegeOrOffice: formCollege,
+      collegeDepartment: formCollege,
       visitorType: formType,
-      isBlocked: false,
-      role: 'RegularUser'
-    };
-
-    const newDocRef = doc(collection(db, 'users'));
-    setDoc(newDocRef, { ...newVisitor, id: newDocRef.id });
+      isBlocked: false
+    });
     
     toast({ title: "Visitor Registered Successfully" });
     
@@ -197,7 +167,7 @@ export default function AdminDashboard() {
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
   const hasAccess = !!adminRole || isSuperUser;
 
-  if (isAdminLoading || isLogsLoading || isUsersLoading) {
+  if (isAdminLoading || isLogsLoading || isVisitorsLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F1F5F8]">
         <Loader2 className="animate-spin h-10 w-10 text-[#1B4332]" />
@@ -210,7 +180,7 @@ export default function AdminDashboard() {
       <div className="min-h-screen flex flex-col items-center justify-center p-4 text-center bg-[#F1F5F8]">
         <ShieldAlert className="h-20 w-20 text-destructive mb-4" />
         <h1 className="text-3xl font-headline font-bold text-[#1B4332]">Access Restricted</h1>
-        <p className="text-muted-foreground mt-2 max-w-md">This area is for Library Personnel only.</p>
+        <p className="text-muted-foreground mt-2 max-w-md">Library personnel only. Authorized account: {authUser?.email}</p>
         <Link href="/"><Button className="mt-8 bg-[#1B4332] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
@@ -218,14 +188,14 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F0FDF4] flex flex-col font-body">
-      <header className="bg-[#1B4332] text-white px-8 py-4 flex items-center justify-between">
+      <header className="bg-[#1B4332] text-white px-8 py-4 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-4">
           {neuLogo?.imageUrl && (
-            <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1" />
+            <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1 shadow-md" />
           )}
           <div>
             <h1 className="text-lg font-bold tracking-tight">NEU Library</h1>
-            <p className="text-[10px] uppercase tracking-widest text-emerald-200/60 font-bold">Admin Dashboard</p>
+            <p className="text-[10px] uppercase tracking-widest text-emerald-200/60 font-bold">Admin Console</p>
           </div>
         </div>
 
@@ -242,7 +212,7 @@ export default function AdminDashboard() {
             className={cn("text-xs font-bold px-4 h-10 rounded-lg", activeTab === 'logs' ? "bg-white/10 text-white" : "text-white/60 hover:text-white")}
             onClick={() => setActiveTab('logs')}
           >
-            <ClipboardList className="mr-2 h-4 w-4" /> Visitor Logs
+            <ClipboardList className="mr-2 h-4 w-4" /> Entry Ledger
           </Button>
           <Button 
             variant="ghost" 
@@ -255,12 +225,10 @@ export default function AdminDashboard() {
 
         <div className="flex items-center gap-4">
           <Button variant="outline" className="bg-[#2D6A4F] border-none text-white hover:bg-[#40916C] h-9 text-xs font-bold">
-            <FileDown className="mr-2 h-4 w-4" /> Export PDF
+            <FileDown className="mr-2 h-4 w-4" /> Export Report
           </Button>
           <Link href="/">
-            <Button variant="ghost" className="text-white hover:bg-white/10 h-9 text-xs font-bold">
-              Sign Out
-            </Button>
+            <Button variant="ghost" className="text-white hover:bg-white/10 h-9 text-xs font-bold">Sign Out</Button>
           </Link>
         </div>
       </header>
@@ -268,125 +236,84 @@ export default function AdminDashboard() {
       <main className="flex-1 p-8">
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="border-emerald-100 shadow-sm">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="border-emerald-100 shadow-sm bg-white">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Filtered Volume</CardDescription>
-                  <CardTitle className="text-3xl font-headline text-[#1B4332]">{stats.total}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Total Library Entries</CardDescription>
+                  <CardTitle className="text-4xl font-headline text-[#1B4332]">{stats.total}</CardTitle>
                 </CardHeader>
-                <CardContent><p className="text-xs text-muted-foreground">Active filter results</p></CardContent>
               </Card>
               <Card className="border-emerald-100 shadow-sm bg-emerald-50">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Today's Entries</CardDescription>
-                  <CardTitle className="text-3xl font-headline text-[#1B4332]">{stats.countToday}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Entries Today</CardDescription>
+                  <CardTitle className="text-4xl font-headline text-[#1B4332]">{stats.countToday}</CardTitle>
                 </CardHeader>
-                <CardContent><p className="text-xs text-emerald-600 font-medium">Live check-ins</p></CardContent>
               </Card>
-              <Card className="border-emerald-100 shadow-sm">
+              <Card className="border-emerald-100 shadow-sm bg-white">
                 <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Peak Activity</CardDescription>
-                  <CardTitle className="text-xl font-headline text-[#1B4332] truncate">{stats.topPurpose}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Registered Patrons</CardDescription>
+                  <CardTitle className="text-4xl font-headline text-[#1B4332]">{allVisitors?.length || 0}</CardTitle>
                 </CardHeader>
-                <CardContent><Badge variant="outline" className="text-emerald-600 border-emerald-200">Main Trend</Badge></CardContent>
-              </Card>
-              <Card className="border-emerald-100 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Security Status</CardDescription>
-                  <CardTitle className="text-xl font-headline text-[#1B4332] flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-emerald-500" /> Secure
-                  </CardTitle>
-                </CardHeader>
-                <CardContent><p className="text-xs text-muted-foreground">Terminal Link Stable</p></CardContent>
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <Card className="lg:col-span-2 border-emerald-100 shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Trends</CardTitle>
-                </CardHeader>
-                <CardContent className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={filteredLogs.slice(0, 10).map((l, i) => ({ name: `Entry ${i+1}`, value: 1 }))}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" hide />
-                      <YAxis hide />
-                      <RechartsTooltip />
-                      <Bar dataKey="value" fill="#1B4332" radius={[4, 4, 0, 0]}>
-                        {filteredLogs.slice(0, 10).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#1B4332" : "#2D6A4F"} />
-                        ))}
-                      </Bar>
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-              <Card className="border-emerald-100 shadow-sm bg-white overflow-hidden">
-                <CardHeader className="bg-[#1B4332] text-white py-4">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-300" /> AI Trend Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {aiSummary ? (
-                    <div className="text-sm text-emerald-900 leading-relaxed font-medium bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                      {aiSummary}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <TrendingUp className="h-12 w-12 text-emerald-200 mb-4" />
-                      <p className="text-xs text-muted-foreground mb-4">No analysis generated yet for this filter set.</p>
-                      <Button 
-                        onClick={generateAiSummary} 
-                        disabled={isSummarizing || !filteredLogs.length}
-                        className="bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-10 px-6 rounded-lg text-xs"
-                      >
-                        {isSummarizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                        Generate Analysis
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="border-emerald-100 shadow-sm bg-white overflow-hidden">
+              <CardHeader className="bg-[#1B4332] text-white py-4 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-emerald-300" /> AI Insights
+                </CardTitle>
+                <Button 
+                  onClick={generateAiSummary} 
+                  disabled={isSummarizing || !logs?.length}
+                  className="bg-emerald-700 hover:bg-emerald-600 text-white font-bold h-8 px-4 rounded-lg text-xs"
+                >
+                  {isSummarizing ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <TrendingUp className="mr-2 h-3 w-3" />}
+                  Analyze Trends
+                </Button>
+              </CardHeader>
+              <CardContent className="p-6">
+                {aiSummary ? (
+                  <div className="text-sm text-emerald-900 leading-relaxed font-medium bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
+                    {aiSummary}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                    <TrendingUp className="h-12 w-12 text-emerald-100 mb-4" />
+                    <p className="text-xs">Click "Analyze Trends" to generate an AI summary of library usage.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
         {activeTab === 'logs' && (
           <Card className="border-emerald-100 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50 mb-4">
-              <CardTitle className="text-lg font-bold text-[#1B4332]">Entry Ledger</CardTitle>
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Search logs..." 
-                  className="w-64 h-9 text-xs rounded-lg border-emerald-100"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
+            <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
+              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Logs</CardTitle>
+              <Input 
+                placeholder="Search logs..." 
+                className="w-64 h-9 text-xs rounded-lg border-emerald-100"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
             </CardHeader>
             <Table>
               <TableHeader className="bg-emerald-50/30">
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Visitor</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">ID / Type</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Activity</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Time</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">School ID</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Purpose</TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Timestamp</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.map((log) => (
-                  <TableRow key={log.id} className="hover:bg-emerald-50/20 transition-colors border-emerald-50">
-                    <TableCell className="font-medium text-[#1B4332]">{log.visitorName}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-mono">{log.schoolId}</span>
-                        <Badge variant="outline" className="w-fit text-[8px] px-1.5 py-0 mt-1 border-emerald-200 text-emerald-700">{log.visitorType}</Badge>
-                      </div>
-                    </TableCell>
+                {logs?.filter(l => l.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) || l.schoolId.includes(searchQuery)).map((log) => (
+                  <TableRow key={log.id} className="hover:bg-emerald-50/10 border-emerald-50">
+                    <TableCell className="font-bold text-[#1B4332]">{log.visitorName}</TableCell>
+                    <TableCell className="text-xs font-mono">{log.schoolId}</TableCell>
                     <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose}</TableCell>
-                    <TableCell className="text-[10px] font-mono">{format(parseISO(log.entryDateTime), 'HH:mm | MMM d')}</TableCell>
+                    <TableCell className="text-[10px] font-mono text-muted-foreground">{format(parseISO(log.entryDateTime), 'MMM d, yyyy HH:mm')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -396,16 +323,15 @@ export default function AdminDashboard() {
 
         {activeTab === 'manage' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-7 space-y-6">
-              <h2 className="text-2xl font-bold text-[#1B4332]">Registered Visitors</h2>
-              <Card className="border-emerald-100 shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between py-4 border-b border-emerald-50">
-                  <CardTitle className="text-md font-bold text-emerald-800">All Users</CardTitle>
+            <div className="lg:col-span-8 space-y-6">
+              <Card className="border-emerald-100 shadow-sm bg-white">
+                <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
+                  <CardTitle className="text-md font-bold text-emerald-900">Registered Visitors</CardTitle>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input 
-                      placeholder="Search..." 
-                      className="pl-9 h-9 w-48 text-xs rounded-lg border-emerald-100" 
+                      placeholder="Search name or ID..." 
+                      className="pl-9 h-9 w-64 text-xs rounded-lg border-emerald-100" 
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -414,22 +340,22 @@ export default function AdminDashboard() {
                   <TableHeader className="bg-emerald-50/30">
                     <TableRow>
                       <TableHead className="text-[10px] font-bold uppercase">Name</TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase">ID</TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase">School ID</TableHead>
                       <TableHead className="text-[10px] font-bold uppercase">Status</TableHead>
                       <TableHead className="text-[10px] font-bold uppercase text-right">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allUsers?.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()) || u.schoolId.includes(searchQuery)).map((user) => (
-                      <TableRow key={user.id} className="border-emerald-50">
-                        <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
-                        <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
+                    {allVisitors?.filter(v => v.name.toLowerCase().includes(searchQuery.toLowerCase()) || v.schoolId.includes(searchQuery)).map((visitor) => (
+                      <TableRow key={visitor.id} className="border-emerald-50">
+                        <TableCell className="font-bold text-emerald-900 text-xs">{visitor.name}</TableCell>
+                        <TableCell className="text-xs font-mono">{visitor.schoolId}</TableCell>
                         <TableCell>
                           <Badge className={cn(
                             "text-[9px] font-bold px-2 py-0.5 rounded-full",
-                            user.isBlocked ? "bg-rose-100 text-rose-600 hover:bg-rose-100" : "bg-emerald-100 text-emerald-600 hover:bg-emerald-100"
+                            visitor.isBlocked ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"
                           )}>
-                            {user.isBlocked ? "Blocked" : "Active"}
+                            {visitor.isBlocked ? "Blocked" : "Active"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -438,11 +364,11 @@ export default function AdminDashboard() {
                             size="sm" 
                             className={cn(
                               "text-[10px] font-bold h-7 px-3 rounded-md",
-                              user.isBlocked ? "text-emerald-600 hover:bg-emerald-50" : "text-rose-600 hover:bg-rose-50"
+                              visitor.isBlocked ? "text-emerald-600" : "text-rose-600"
                             )}
-                            onClick={() => toggleBlockStatus(user.id, user.isBlocked)}
+                            onClick={() => toggleBlockStatus(visitor.id, visitor.isBlocked)}
                           >
-                            {user.isBlocked ? "Unblock" : "Block"}
+                            {visitor.isBlocked ? "Unblock" : "Block"}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -452,74 +378,73 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
-            <div className="lg:col-span-5 space-y-8">
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-[#1B4332]">Add New Visitor</h2>
-                <Card className="border-emerald-100 shadow-sm">
-                  <form onSubmit={handleAddVisitor}>
-                    <CardContent className="p-6 space-y-4">
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
-                        <Input 
-                          value={formName}
-                          onChange={(e) => setFormName(formatName(e.target.value))}
-                          placeholder="Juan dela Cruz" 
-                          className="h-10 text-xs rounded-lg border-emerald-100" 
-                          required 
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
-                        <Input 
-                          value={formSchoolId}
-                          onChange={(e) => setFormSchoolId(formatSchoolId(e.target.value))}
-                          placeholder="00-00000-000" 
-                          className="h-10 text-xs rounded-lg border-emerald-100" 
-                          required 
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional Email</Label>
-                        <Input 
-                          type="email"
-                          value={formEmail}
-                          onChange={(e) => setFormEmail(e.target.value)}
-                          placeholder="firstname.lastname@neu.edu.ph" 
-                          className="h-10 text-xs rounded-lg border-emerald-100" 
-                          required 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">College/Dept</Label>
-                          <Input 
-                            value={formCollege}
-                            onChange={(e) => setFormCollege(e.target.value.toUpperCase())}
-                            placeholder="CICS / COE / CAS" 
-                            className="h-10 text-xs rounded-lg border-emerald-100" 
-                            required 
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
-                          <Select value={formType} onValueChange={setFormType}>
-                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Student">Student</SelectItem>
-                              <SelectItem value="Faculty">Faculty</SelectItem>
-                              <SelectItem value="Staff">Staff</SelectItem>
-                              <SelectItem value="Guest">Guest</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <Button type="submit" className="w-full bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2 shadow-lg">
-                        <UserPlus className="mr-2 h-4 w-4" /> Register Visitor
-                      </Button>
-                    </CardContent>
-                  </form>
-                </Card>
-              </div>
+            <div className="lg:col-span-4">
+              <Card className="border-emerald-100 shadow-sm sticky top-8">
+                <CardHeader className="bg-emerald-50 border-b border-emerald-100">
+                  <CardTitle className="text-md font-bold text-emerald-900">Add New Visitor</CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-bold text-emerald-800/40">Registration Form</CardDescription>
+                </CardHeader>
+                <form onSubmit={handleAddVisitor}>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
+                      <Input 
+                        value={formName}
+                        onChange={(e) => handleNameInput(e.target.value)}
+                        placeholder="Ex: Jorus Junio" 
+                        className="h-10 text-xs rounded-lg border-emerald-100" 
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
+                      <Input 
+                        value={formSchoolId}
+                        onChange={(e) => handleIdInput(e.target.value)}
+                        placeholder="00-00000-000" 
+                        className="h-10 text-xs rounded-lg border-emerald-100 font-mono" 
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional Email</Label>
+                      <Input 
+                        type="email"
+                        value={formEmail}
+                        onChange={(e) => setFormEmail(e.target.value)}
+                        placeholder="firstname.lastname@neu.edu.ph" 
+                        className="h-10 text-xs rounded-lg border-emerald-100" 
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">College Department</Label>
+                      <Input 
+                        value={formCollege}
+                        onChange={(e) => setFormCollege(e.target.value.toUpperCase())}
+                        placeholder="Ex: CICS" 
+                        className="h-10 text-xs rounded-lg border-emerald-100" 
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
+                      <Select value={formType} onValueChange={setFormType}>
+                        <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Student">Student</SelectItem>
+                          <SelectItem value="Faculty">Faculty</SelectItem>
+                          <SelectItem value="Staff">Staff</SelectItem>
+                          <SelectItem value="Guest">Guest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="submit" className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold h-12 rounded-xl mt-4 shadow-lg">
+                      <UserPlus className="mr-2 h-4 w-4" /> Register Visitor
+                    </Button>
+                  </CardContent>
+                </form>
+              </Card>
             </div>
           </div>
         )}

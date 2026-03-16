@@ -1,21 +1,20 @@
 
 {
   "entities": {
-    "Visitor": {
-      "title": "Visitor Profile",
-      "description": "Standard user profile for library patrons.",
+    "RegisteredVisitor": {
+      "title": "Registered Visitor",
+      "description": "Information about a visitor registered in the library system.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Firebase Auth UID" },
-        "schoolId": { "type": "string", "description": "Institutional ID number (00-00000-000)" },
-        "name": { "type": "string" },
+        "id": { "type": "string", "description": "Unique identifier" },
+        "name": { "type": "string", "description": "Full name of the visitor" },
+        "schoolId": { "type": "string", "description": "Format: 00-00000-000" },
         "email": { "type": "string", "format": "email" },
-        "collegeOrOffice": { "type": "string", "description": "Institutional affiliation" },
+        "collegeDepartment": { "type": "string", "description": "Institutional affiliation (e.g., CICS, COE)" },
         "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff", "Guest"] },
-        "isBlocked": { "type": "boolean", "description": "Administrative lock status" },
-        "role": { "type": "string", "enum": ["RegularUser", "Admin"] }
+        "isBlocked": { "type": "boolean", "description": "Administrative lock status" }
       },
-      "required": ["id", "name", "email"]
+      "required": ["name", "schoolId", "email"]
     },
     "VisitorLog": {
       "title": "Library Entry Log",
@@ -26,29 +25,29 @@
         "schoolId": { "type": "string" },
         "visitorName": { "type": "string" },
         "visitorEmail": { "type": "string" },
-        "visitorType": { "type": "string", "description": "Student or Employee classification" },
+        "visitorType": { "type": "string" },
         "college": { "type": "string" },
-        "purpose": { "type": "string", "description": "Primary activity selected by user" },
+        "purpose": { "type": "string" },
         "entryDateTime": { "type": "string", "format": "date-time" }
       },
-      "required": ["visitorId", "visitorName", "purpose", "entryDateTime"]
+      "required": ["visitorName", "purpose", "entryDateTime"]
     }
   },
   "auth": {
     "providers": ["google.com"]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": { "$ref": "#/backend/entities/Visitor" },
-      "description": "User profile document containing demographic and status data."
+    "/registeredVisitors/{visitorId}": {
+      "schema": { "$ref": "#/backend/entities/RegisteredVisitor" },
+      "description": "The primary registry for known library patrons."
     },
     "/roles_admin/{userId}": {
       "schema": { "type": "object" },
-      "description": "Existence of a document here identifies a user with Administrative privileges."
+      "description": "Administrative role mapping."
     },
     "/visitorLogs/{logId}": {
       "schema": { "$ref": "#/backend/entities/VisitorLog" },
-      "description": "The primary audit trail for library visitation."
+      "description": "The audit trail for library visitation."
     }
   }
 }

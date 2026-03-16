@@ -1,26 +1,16 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * NEU Library Visitor Log - Security Rules
-     * 
-     * Deployment Trigger: v1.0.2 - Explicit SuperAdmin Whitelist Update
+     * NEU Library Visitor Log - Security Rules v1.0.4
      */
 
-    // --- Helper Functions ---
-
-    /** @description Checks if the user is authenticated with Firebase Auth. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided ID. */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /** @description Checks if the user is a designated super admin or has the admin role document. */
     function isAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'jcesperanza@neu.edu.ph' ||
@@ -29,40 +19,19 @@ service cloud.firestore {
       );
     }
 
-    // --- Collection Rules ---
-
-    /**
-     * @description Rules for user profiles.
-     * @path /users/{userId}
-     */
-    match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Users can update their own profile, but cannot change 'role' or 'isBlocked'.
-      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
-      allow delete: if isAdmin();
+    match /registeredVisitors/{visitorId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Admin role markers.
-     * @path /roles_admin/{userId}
-     */
     match /roles_admin/{userId} {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Audit logs for library entries. 
-     * @path /visitorLogs/{logId}
-     */
     match /visitorLogs/{logId} {
       allow get, list: if isAdmin();
-      allow create: if isSignedIn() && (
-        request.resource.data.visitorId == request.auth.uid || 
-        request.auth.token.firebase.sign_in_provider == 'anonymous'
-      );
+      allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }
   }
