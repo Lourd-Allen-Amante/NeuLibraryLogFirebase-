@@ -1,181 +1,51 @@
 {
   "entities": {
     "Visitor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Visitor",
+      "description": "Represents an individual at NEU Library.",
       "type": "object",
-      "description": "Represents an individual (student, faculty, staff, or other) who visits the NEU Library. This entity stores core visitor information and their application role and status.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Visitor entity, typically the NEU School ID or RF ID."
-        },
-        "name": {
-          "type": "string",
-          "description": "The full name of the visitor as registered with the institution."
-        },
-        "email": {
-          "type": "string",
-          "description": "The institutional Google-based email address of the visitor, used for identification and login.",
-          "format": "email"
-        },
-        "collegeOrOffice": {
-          "type": "string",
-          "description": "The college (for students) or office (for faculty/staff) the visitor is affiliated with, used for filtering statistics."
-        },
-        "visitorType": {
-          "type": "string",
-          "description": "Categorization of the visitor, e.g., 'Student', 'Faculty', 'Staff', 'Guest'. This helps distinguish employees for statistical filtering."
-        },
-        "isBlocked": {
-          "type": "boolean",
-          "description": "A flag indicating whether this visitor is currently blocked from entering the library by an administrator. 'true' means blocked, 'false' means allowed."
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the user within the NEU ScholarFlow application, defining their access permissions (e.g., 'RegularUser', 'Admin')."
-        }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "collegeOrOffice": { "type": "string" },
+        "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff", "Guest"] },
+        "isBlocked": { "type": "boolean" },
+        "role": { "type": "string", "enum": ["RegularUser", "Admin"] }
       },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "collegeOrOffice",
-        "visitorType",
-        "isBlocked",
-        "role"
-      ]
-    },
-    "PurposeOfVisit": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PurposeOfVisit",
-      "type": "object",
-      "description": "Defines the pre-selected reasons a visitor might have for entering the NEU Library, allowing for standardized data collection and filtering.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the PurposeOfVisit entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "A concise, user-friendly name for the purpose of visit (e.g., 'Reading Books', 'Research in Thesis', 'Use of Computer', 'Doing Assignments')."
-        },
-        "description": {
-          "type": "string",
-          "description": "A more detailed explanation of what this purpose of visit entails."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "description"
-      ]
+      "required": ["id", "name", "email", "collegeOrOffice", "visitorType", "isBlocked", "role"]
     },
     "VisitorLog": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "VisitorLog",
+      "description": "A log entry for a library visit.",
       "type": "object",
-      "description": "Records each individual entry of a visitor into the NEU Library, capturing essential details like the visitor's identity, entry time, and stated purpose of visit.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the VisitorLog entity."
-        },
-        "visitorId": {
-          "type": "string",
-          "description": "Reference to the Visitor who made this entry. (Relationship: Visitor 1:N VisitorLog)"
-        },
-        "purposeOfVisitId": {
-          "type": "string",
-          "description": "Reference to the PurposeOfVisit selected for this entry. (Relationship: PurposeOfVisit 1:N VisitorLog)"
-        },
-        "entryDateTime": {
-          "type": "string",
-          "description": "The exact date and time when the visitor entered the library.",
-          "format": "date-time"
-        }
+        "visitorId": { "type": "string" },
+        "visitorName": { "type": "string" },
+        "visitorEmail": { "type": "string" },
+        "visitorType": { "type": "string" },
+        "college": { "type": "string" },
+        "purpose": { "type": "string" },
+        "entryDateTime": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "visitorId",
-        "purposeOfVisitId",
-        "entryDateTime"
-      ]
+      "required": ["visitorId", "visitorName", "purpose", "entryDateTime"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["google.com"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "visitor",
-          "schema": {
-            "$ref": "#/backend/entities/Visitor"
-          },
-          "description": "Stores individual visitor profiles, where the document ID is the user's authentication UID. Includes `name`, `email`, `collegeOrOffice`, `visitorType`, `isBlocked`, and `role`. This path supports path-based ownership for authorization, requiring no `get()` calls for a user to manage their own profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The authentication UID of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "visitor",
-          "schema": {
-            "$ref": "#/backend/entities/Visitor"
-          },
-          "description": "A collection used for role-based access control. The existence of a document with a specific `userId` in this collection indicates that the user has administrator privileges. This provides Authorization Independence by allowing rules to check for existence rather than content or `get()` calls.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The authentication UID of the user who is an admin."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/purposeOfVisits/{purposeId}",
-        "definition": {
-          "entityName": "purposeOfVisit",
-          "schema": {
-            "$ref": "#/backend/entities/PurposeOfVisit"
-          },
-          "description": "Stores predefined purposes for visiting the library. This is static reference data, readable by all authenticated users and writable only by administrators. No inter-document authorization dependencies.",
-          "params": [
-            {
-              "name": "purposeId",
-              "description": "The unique identifier for a specific purpose of visit."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/visitorLogs/{logId}",
-        "definition": {
-          "entityName": "visitorLog",
-          "schema": {
-            "$ref": "#/backend/entities/VisitorLog"
-          },
-          "description": "Records each entry of a visitor into the library. This collection includes denormalized fields such as `visitorName`, `visitorEmail`, `visitorCollegeOrOffice`, `visitorType`, and `purposeName` from the associated Visitor and PurposeOfVisit entities. This denormalization is critical for Authorization Independence and supporting Queryable Access Patterns (QAPs), allowing administrators to filter and query logs efficiently without `get()` calls in security rules. Only administrators can read/list documents from this collection.",
-          "params": [
-            {
-              "name": "logId",
-              "description": "The unique identifier for a specific visitor log entry."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The recommended Firestore structure is designed to be secure, scalable, and highly debuggable, prioritizing Authorization Independence and robust Queryable Access Patterns (QAPs). \n\n1.  **Users Collection (`/users/{userId}`):** This collection stores individual visitor profiles, with the document ID (`userId`) directly corresponding to `request.auth.uid`. This allows for simple, path-based ownership rules, making it trivial for users to access their own data without requiring `get()` calls. Key attributes like `role` and `isBlocked` are stored here, enabling DBAC. Admin users can update `isBlocked` status for other users.\n\n2.  **Admin Roles Collection (`/roles_admin/{userId}`):** This collection is specifically for role-based access control, implementing the 'Existence over Content' principle for global roles. The mere presence of a document at `/roles_admin/$(request.auth.uid)` grants administrative privileges. This method ensures Authorization Independence as rules can check `exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))` without any `get()` operations, simplifying rule logic and enhancing performance.\n\n3.  **Purpose of Visits Collection (`/purposeOfVisits/{purposeId}`):** This serves as a static lookup table for predefined reasons for library visits. All authenticated users can read this collection to select a purpose, while write/update access is restricted to administrators. Its static nature means no inter-document authorization dependencies, thus maintaining Authorization Independence.\n\n4.  **Visitor Logs Collection (`/visitorLogs/{logId}`):** This is the core collection for recording each library entry. It's critically designed to support Queryable Access Patterns (QAPs) for administrators and maintain Authorization Independence. To achieve this, all fields necessary for administrative filtering and statistics (e.g., `visitorName`, `visitorEmail`, `visitorCollegeOrOffice`, `visitorType`, `purposeName`, `entryDateTime`) are **denormalized** directly into each `visitorLog` document. This denormalization eliminates the need for `get()` calls in security rules when administrators query the logs based on various criteria (reason, college, visitor type, date ranges). Rules can simply check if the user is an administrator (via the `roles_admin` collection) and allow list/read operations. Regular users are permitted to *create* their own log entries (with appropriate `visitorId` matching `request.auth.uid`), but cannot *read* from this collection, further simplifying rule design for different security postures. The `isBlocked` check during log creation would ideally be handled by a trusted backend service (Cloud Function) to ensure atomic operations and avoid client-side spoofing or `get()` calls in security rules for this critical condition."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/Visitor" },
+      "description": "User profile"
+    },
+    "/roles_admin/{userId}": {
+      "schema": { "type": "object" },
+      "description": "Admin role marker"
+    },
+    "/visitorLogs/{logId}": {
+      "schema": { "$ref": "#/backend/entities/VisitorLog" },
+      "description": "Visit history"
+    }
   }
 }

@@ -1,16 +1,21 @@
-
 {
   "placeholderImages": [
     {
+      "id": "neu-logo",
+      "description": "New Era University Logo",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/en/2/2e/New_Era_University_logo.png",
+      "imageHint": "university logo"
+    },
+    {
       "id": "library-bg",
-      "description": "Modern library interior with natural light and study spaces",
-      "imageUrl": "https://picsum.photos/seed/library1/1920/1080",
+      "description": "Modern library interior",
+      "imageUrl": "https://picsum.photos/seed/neu-lib/1920/1080",
       "imageHint": "modern library"
     },
     {
       "id": "admin-avatar",
-      "description": "Professional administrative staff member",
-      "imageUrl": "https://picsum.photos/seed/admin1/200/200",
+      "description": "Admin user profile",
+      "imageUrl": "https://picsum.photos/seed/admin-neu/200/200",
       "imageHint": "professional person"
     }
   ]
