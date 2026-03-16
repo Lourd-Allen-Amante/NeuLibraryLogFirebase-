@@ -3,6 +3,12 @@
 A secure, high-performance visitor check-in and administration system for the New Era INC Library.
 
 LIVE APP: [NEU Library Log](https://9000-firebase-studio-1773383619654.cluster-yylgzpipxrar4v4a72liastuqy.cloudworkstations.dev)
+---
+### Authorized Administrators
+The following emails are pre-authorized for Admin Console access:
+- `Email:jcesperanza@neu.edu.ph` `Password:Admin123`
+- `lourdallen.amante@neu.edu.ph` 
+- `neulibrarian@neu.edu.ph`
 
 ## Features
 - **Visitor Terminal**: Secure check-in for registered students with real-time verification and block-list checks. Supports both Institutional ID (00-00000-000) and NEU Email identification.
@@ -51,15 +57,7 @@ If a student is no longer allowed access to the library:
 3.  Click **Revoke Access**. The student will be blocked from checking in at the terminal.
 4.  To restore access, simply click **Unblock Access** in the same list.
 
----
 
-## Technical Information (For IT Staff)
-
-### Authorized Administrators
-The following emails are pre-authorized for Admin Console access:
-- `jcesperanza@neu.edu.ph`
-- `lourdallen.amante@neu.edu.ph`
-- `neulibrarian@neu.edu.ph`
 
 ### Tech Stack
 - **Framework**: Next.js 15 (App Router)
