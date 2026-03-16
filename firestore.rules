@@ -3,36 +3,143 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * NEU Library Visitor Log - Security Rules v1.1.0
-     * Explicit Admin Authorization for jcesperanza@neu.edu.ph and lourdallen.amante@neu.edu.ph
+     * CORE PHILOSOPHY:
+     * This ruleset implements a robust, multi-tiered authorization model for the NEU Library Visit System. 
+     * It distinguishes between institutional visitors (students/faculty) and administrative staff using 
+     * a combination of Role-Based Access Control (RBAC) and ownership mappings.
+     *
+     * DATA STRUCTURE:
+     * - /admin_roles/{uid}: Lightweight collection for rapid privilege verification.
+     * - /visitor_firebase_mappings/{uid}: Secure bridge between Firebase Auth and institutional IDs.
+     * - /visitors/{visitorId}: Comprehensive profiles controlled by admins.
+     * - /visitLogs/{logId}: Flat collection of entry/exit events, secured by owner-ID checks.
+     *
+     * KEY SECURITY DECISIONS:
+     * 1. Authorization Independence: Administrative privileges are determined by the existence of a 
+     *    document in the /admin_roles collection, allowing for high-performance rule evaluation.
+     * 2. Blocking Logic: Entry log creation is conditional upon a real-time 'isBlocked' check 
+     *    against the visitor's profile.
+     * 3. Identity Bridging: Since institutional IDs differ from Firebase UIDs, a mapping collection 
+     *    ensures visitors can only access data tied to their specific institutional record.
      */
+
+    // --- GLOBAL HELPER FUNCTIONS ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
+    /** Checks if the current user has an entry in the administrative roles collection */
     function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'jcesperanza@neu.edu.ph' ||
-        request.auth.token.email == 'lourdallen.amante@neu.edu.ph' ||
-        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid))
-      );
+      return isSignedIn() && exists(/databases/$(database)/documents/admin_roles/$(request.auth.uid));
     }
 
-    match /registeredVisitors/{visitorId} {
-      allow get, list: if isSignedIn();
+    /** Checks if the user is a SuperAdmin for destructive or sensitive admin management */
+    function isSuperAdmin() {
+      return isAdmin() && get(/databases/$(database)/documents/admin_roles/$(request.auth.uid)).data.role == 'SuperAdmin';
+    }
+
+    /** Validates that the request is coming from the specific owner of a resource path */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** Retrieves the internal visitorId from the user's unique Firebase mapping */
+    function getMappedVisitorId() {
+      return get(/databases/$(database)/documents/visitor_firebase_mappings/$(request.auth.uid)).data.visitorId;
+    }
+
+    /** Checks if a visitor is currently blocked from library access */
+    function isNotBlocked(vId) {
+      return get(/databases/$(database)/documents/visitors/$(vId)).data.isBlocked == false;
+    }
+
+    // The function `isExistingOwner` was unused and contained an invalid reference to `resource`.
+    // Since it was not used anywhere in the rules, it has been removed to resolve the warnings.
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Profiles for institutional visitors. Managed by admins; read-only for the visitor.
+     * @path /visitors/{visitorId}
+     * @allow (get) If user is an admin OR if the visitor's mapping points to this ID.
+     * @deny (create) If requester is not an admin.
+     * @principle Structural segregation of visitor profiles from auth mappings.
+     */
+    match /visitors/{visitorId} {
+      allow get: if isAdmin() || (isSignedIn() && getMappedVisitorId() == visitorId);
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Maps Firebase UIDs to internal Visitor IDs.
+     * @path /visitor_firebase_mappings/{firebaseUid}
+     * @allow (create) If the user is setting up their own mapping.
+     * @deny (get) If a user tries to look up another user's mapping.
+     * @principle Path-based ownership for identity resolution.
+     */
+    match /visitor_firebase_mappings/{firebaseUid} {
+      allow get, list: if isOwner(firebaseUid);
+      allow create: if isOwner(firebaseUid);
+      allow update: if isOwner(firebaseUid) && resource != null;
+      allow delete: if isOwner(firebaseUid) && resource != null;
+    }
+
+    /**
+     * @description Read-only list of visit purposes available to everyone.
+     * @path /visitPurposes/{purposeId}
+     * @allow (list) Public access for selection in UI.
+     * @deny (write) If requester is not an admin.
+     * @principle Public read with owner-only (admin) writes.
+     */
+    match /visitPurposes/{purposeId} {
+      allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    match /roles_admin/{userId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+    /**
+     * @description Logs of visitor entries and exits.
+     * @path /visitLogs/{logId}
+     * @allow (create) If visitor matches mapping and is NOT blocked.
+     * @deny (update) If visitor tries to change the log's visitorId.
+     * @principle Relational integrity and conditional creation based on external state (isBlocked).
+     */
+    match /visitLogs/{logId} {
+      allow get: if isAdmin() || (isSignedIn() && resource.data.visitorId == getMappedVisitorId());
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 100 && getMappedVisitorId() != null); 
+      allow create: if isSignedIn() && request.resource.data.visitorId == getMappedVisitorId() && isNotBlocked(request.resource.data.visitorId);
+      allow update: if (isAdmin() || (isSignedIn() && resource.data.visitorId == getMappedVisitorId())) && request.resource.data.visitorId == resource.data.visitorId;
+      allow delete: if isAdmin();
     }
 
-    match /visitorLogs/{logId} {
+    /**
+     * @description Detailed administrative user profiles.
+     * @path /admin_users/{adminUserId}
+     * @allow (get) If requester is an admin.
+     * @deny (update) If requester is not the profile owner or a SuperAdmin.
+     * @principle DBAC (Database Access Control) via admin role existence.
+     */
+    match /admin_users/{adminUserId} {
       allow get, list: if isAdmin();
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (isOwner(adminUserId) && isAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    /**
+     * @description Denormalized roles for rapid rule checks.
+     * @path /admin_roles/{adminUserId}
+     * @allow (get) Any signed-in user can check their own role status.
+     * @deny (write) Any non-SuperAdmin trying to modify roles.
+     * @principle Authorization Independence via denormalization.
+     */
+    match /admin_roles/{adminUserId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create, update, delete: if isSuperAdmin();
     }
   }
 }

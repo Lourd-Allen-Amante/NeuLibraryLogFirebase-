@@ -1,53 +1,292 @@
-
 {
   "entities": {
-    "RegisteredVisitor": {
-      "title": "Registered Visitor",
-      "description": "Information about a visitor registered in the library system.",
+    "Visitor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Visitor",
       "type": "object",
+      "description": "Represents a person (student, faculty, or employee) who visits the NEU Library.",
       "properties": {
-        "id": { "type": "string", "description": "Unique identifier" },
-        "name": { "type": "string", "description": "Full name of the visitor" },
-        "schoolId": { "type": "string", "description": "Format: 00-00000-000" },
-        "email": { "type": "string", "format": "email" },
-        "collegeDepartment": { "type": "string", "description": "Institutional affiliation (e.g., CICS, COE)" },
-        "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff", "Guest"] },
-        "isBlocked": { "type": "boolean", "description": "Administrative lock status" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Visitor entity."
+        },
+        "institutionalId": {
+          "type": "string",
+          "description": "The unique institutional ID (e.g., NEU School ID, RF ID) used for identification and authentication."
+        },
+        "email": {
+          "type": "string",
+          "description": "The institutional Google-based email address of the visitor, used as an alternative login.",
+          "format": "email"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The full name of the visitor, displayed upon successful check-in."
+        },
+        "collegeOrOffice": {
+          "type": "string",
+          "description": "The college or office within the institution that the visitor belongs to, displayed upon successful check-in."
+        },
+        "type": {
+          "type": "string",
+          "description": "The category of the visitor within the institution.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isBlocked": {
+          "type": "boolean",
+          "description": "Indicates whether the visitor is currently blocked from entering the library by an administrator. (Default: false)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the visitor record was initially created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the visitor record was last updated.",
+          "format": "date-time"
+        }
       },
-      "required": ["name", "schoolId", "email"]
+      "required": [
+        "id",
+        "institutionalId",
+        "email",
+        "fullName",
+        "collegeOrOffice",
+        "type",
+        "isBlocked",
+        "createdAt"
+      ]
     },
-    "VisitorLog": {
-      "title": "Library Entry Log",
-      "description": "A secure, immutable record of a library visit.",
+    "VisitPurpose": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VisitPurpose",
       "type": "object",
+      "description": "Defines the pre-selected reasons for a visitor's entry into the NEU Library.",
       "properties": {
-        "visitorId": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "visitorName": { "type": "string" },
-        "visitorEmail": { "type": "string" },
-        "visitorType": { "type": "string" },
-        "college": { "type": "string" },
-        "purpose": { "type": "string" },
-        "entryDateTime": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VisitPurpose entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "A concise name for the purpose of visit (e.g., 'Reading Books', 'Research in Thesis', 'Use of Computer', 'Doing Assignments')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A more detailed explanation or context for the visit purpose."
+        }
       },
-      "required": ["visitorName", "purpose", "entryDateTime"]
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "VisitLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VisitLog",
+      "type": "object",
+      "description": "Records individual entries of visitors into the NEU Library, including time, purpose, and check-in method.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VisitLog entry."
+        },
+        "visitorId": {
+          "type": "string",
+          "description": "Reference to the Visitor who made this entry. (Relationship: Visitor 1:N VisitLog)"
+        },
+        "visitPurposeId": {
+          "type": "string",
+          "description": "Reference to the selected VisitPurpose for this entry. (Relationship: VisitPurpose 1:N VisitLog)"
+        },
+        "entryDateTime": {
+          "type": "string",
+          "description": "The date and time when the visitor entered the library.",
+          "format": "date-time"
+        },
+        "exitDateTime": {
+          "type": "string",
+          "description": "The date and time when the visitor exited the library (optional, useful for calculating visit duration).",
+          "format": "date-time"
+        },
+        "checkInMethod": {
+          "type": "string",
+          "description": "The method used by the visitor for checking in (e.g., 'RFID' for ID tap, 'Email' for institutional email login).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when this visit log record was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "visitorId",
+        "visitPurposeId",
+        "entryDateTime",
+        "checkInMethod",
+        "createdAt"
+      ]
+    },
+    "AdminUser": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AdminUser",
+      "type": "object",
+      "description": "Represents an administrative user with privileges to manage visitor records, view statistics, and generate reports.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AdminUser entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the administrator, used for login.",
+          "format": "email"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The full name of the administrator."
+        },
+        "role": {
+          "type": "string",
+          "description": "The administrative role assigned to the user, determining their access and permissions (e.g., 'Librarian', 'SuperAdmin')."
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Timestamp of the administrator's most recent successful login.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the admin user record was initially created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the admin user record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "fullName",
+        "role",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/registeredVisitors/{visitorId}": {
-      "schema": { "$ref": "#/backend/entities/RegisteredVisitor" },
-      "description": "The primary registry for known library patrons."
-    },
-    "/roles_admin/{userId}": {
-      "schema": { "type": "object" },
-      "description": "Administrative role mapping."
-    },
-    "/visitorLogs/{logId}": {
-      "schema": { "$ref": "#/backend/entities/VisitorLog" },
-      "description": "The audit trail for library visitation."
-    }
+    "structure": [
+      {
+        "path": "/visitors/{visitorId}",
+        "definition": {
+          "entityName": "Visitor",
+          "schema": {
+            "$ref": "#/backend/entities/Visitor"
+          },
+          "description": "Stores the detailed profile for each institutional visitor (student, faculty, employee). The 'id' field is the unique identifier for the visitor. The 'isBlocked' field is critical for access control during visit log creation. Readable by administrators and the associated individual visitor via mapping. Writable by administrators.",
+          "params": [
+            {
+              "name": "visitorId",
+              "description": "The unique identifier for a specific visitor, corresponding to the 'id' field in the Visitor document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/visitor_firebase_mappings/{firebaseUid}",
+        "definition": {
+          "entityName": "Visitor",
+          "schema": {
+            "$ref": "#/backend/entities/Visitor"
+          },
+          "description": "Maps a Firebase Authentication UID (request.auth.uid) to a Visitor entity's ID. Document contains a 'visitorId' field. For security rules, this document's existence links the authenticated Firebase user to their specific Visitor profile. Readable and writable only by the authenticated user matching {firebaseUid}.",
+          "params": [
+            {
+              "name": "firebaseUid",
+              "description": "The unique Firebase Authentication UID of the logged-in user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/visitPurposes/{purposeId}",
+        "definition": {
+          "entityName": "VisitPurpose",
+          "schema": {
+            "$ref": "#/backend/entities/VisitPurpose"
+          },
+          "description": "Contains a pre-defined, read-only list of visit purposes that visitors can select during check-in. Accessible by all (authenticated or unauthenticated) for display. Writable only by administrators.",
+          "params": [
+            {
+              "name": "purposeId",
+              "description": "The unique identifier for a specific visit purpose."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/visitLogs/{logId}",
+        "definition": {
+          "entityName": "VisitLog",
+          "schema": {
+            "$ref": "#/backend/entities/VisitLog"
+          },
+          "description": "Records individual entry and exit logs for visitors. Includes a 'visitorId' field for linking to the Visitor profile. Creation requires checking the linked Visitor's 'isBlocked' status via a 'get()' call in rules. Readable by administrators for statistics and by the associated individual visitor. Creatable/updatable by the associated individual visitor.",
+          "params": [
+            {
+              "name": "logId",
+              "description": "The unique identifier for a specific visit log entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_users/{adminUserId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "Stores detailed profiles for administrative staff. The 'id' field is the unique identifier for the administrator, matching their Firebase Authentication UID. Readable and writable by authenticated administrators, potentially restricted further by the 'role' field (e.g., 'SuperAdmin' can manage all admins).",
+          "params": [
+            {
+              "name": "adminUserId",
+              "description": "The unique identifier for a specific administrator, matching their Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admin_roles/{adminUserId}",
+        "definition": {
+          "entityName": "AdminUser",
+          "schema": {
+            "$ref": "#/backend/entities/AdminUser"
+          },
+          "description": "A lightweight collection used for rapid Firebase security rule checks. The existence of a document at this path for a given 'adminUserId' (matching request.auth.uid) grants administrative privileges. This denormalizes the admin role for authorization independence. Document typically contains a 'role' field. Only SuperAdmins can manage these documents.",
+          "params": [
+            {
+              "name": "adminUserId",
+              "description": "The unique identifier for an administrator, corresponding to their Firebase Authentication UID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure for NEU ScholarFlow prioritizes Authorization Independence and QAPs through strategic denormalization and structural segregation, while adhering to DBAC principles.\n\n**Authorization Independence:**\n1.  **Admin Role Denormalization:** To minimize hierarchical dependencies and enable atomic operations, admin roles are denormalized into a dedicated top-level collection: `/admin_roles/{adminUserId}`. The *existence* of a document at `/admin_roles/$(request.auth.uid)` is sufficient to grant administrative privileges in security rules, eliminating the need for `get()` calls to the more comprehensive `/admin_users/{adminUserId}` profile collection for basic role checks. This makes admin authorization extremely efficient and robust, directly supporting atomic operations by removing `get()` dependencies for role checks.\n2.  **Visitor Block Status (`isBlocked`):** When a `VisitLog` is created by a visitor, a security rule *must* check the `isBlocked` status of the corresponding `Visitor` document. This is an acceptable `get()` operation because it serves as a *precondition* for a *new* document creation, not as an authorization dependency for *reading* an existing document. The `VisitLog` itself does not denormalize the `isBlocked` flag, as its read access is primarily controlled by the associated `visitorId` or by administrative privileges, not by the visitor's block status post-entry prevention. This approach prevents unnecessary data duplication while maintaining strong pre-entry security for new visit logs.\n\n**Querying and Authorization Patterns (QAPs):**\n1.  **Structural Segregation:** Data is organized into collections based on its security posture and access patterns, ensuring that all documents within a collection share a homogeneous security posture. This simplifies rule writing by moving complexity from logic to structure:\n    *   `/visitors/{visitorId}`: Stores individual visitor profiles. Accessible by administrators for management and by the specific visitor (via `visitor_firebase_mappings`) for their own profile details. \n    *   `/visitLogs/{logId}`: A top-level collection for all visit entries. This enables administrators to easily query and aggregate all visit data for their dashboard and reports without complex filtering (secure `list` for admins). For individual visitors, secure `list` operations are supported by querying based on their `visitorId` (obtained from `/visitor_firebase_mappings`), ensuring rules are not acting as filters.\n    *   `/visitPurposes/{purposeId}`: Contains a public, read-only list of visit reasons, accessible to all (authenticated or unauthenticated) to populate check-in forms. Write access is restricted to administrators.\n    *   `/admin_users/{adminUserId}`: Stores detailed profiles for administrators, with `adminUserId` directly corresponding to `request.auth.uid` for administrators. Access is restricted to authenticated administrators, potentially further by `role` field (e.g., 'SuperAdmin' managing 'Librarian' profiles).\n    *   `/visitor_firebase_mappings/{firebaseUid}`: This collection provides a secure, one-to-one mapping between a Firebase Authentication `uid` and an internal `visitorId`. This is critical for connecting Firebase authenticated visitors to their corresponding institutional records without exposing sensitive institutional IDs directly in Firebase Auth or relying on custom claims. It ensures that `request.auth.uid` can always be translated into the appropriate `visitorId` for granular access control and ownership-based queries. The documents here are effectively lightweight 'Visitor' references.\n2.  **Consistent Access Modeling:**\n    *   **Path-Based Ownership:** The `/visitor_firebase_mappings/{firebaseUid}` collection ensures that each Firebase authenticated user (`request.auth.uid`) has direct control over their own mapping, adhering to the principle of path-based ownership for private data. The `visitorId` field in `VisitLog` facilitates ownership-based queries for visitors to retrieve their personal visit history.\n    *   **Global Roles (DBAC):** The `/admin_roles/{adminUserId}` collection (leveraging existence over content) is the cornerstone for DBAC, allowing for straightforward security rules for administrators based solely on `request.auth.uid`.\n\nThis design minimizes complexity in security rules, enhances debuggability by making authorization intent explicit through structure, and supports efficient querying for both administrative dashboards and individual user experiences, fully supporting QAPs for all critical list operations."
   }
 }
