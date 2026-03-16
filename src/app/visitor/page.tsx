@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -7,13 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { VISIT_PURPOSES, Purpose } from '@/lib/types';
-import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, Mail, Loader2, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, Clock, DoorOpen, Scan, Keyboard, Mail, Loader2, ArrowLeft, ShieldX, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useFirestore, useAuth, useUser } from '@/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 
 export default function VisitorCheckIn() {
@@ -28,6 +29,9 @@ export default function VisitorCheckIn() {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // To store the found visitor data
+  const [verifiedVisitor, setVerifiedVisitor] = useState<any>(null);
 
   // Ensure an anonymous session for logging if not logged in
   useEffect(() => {
@@ -46,7 +50,6 @@ export default function VisitorCheckIn() {
   const handleIdInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     if (idMethod === 'schoolId') {
-      // Auto-formatting for 00-00000-000
       value = value.replace(/\D/g, '');
       if (value.length > 10) value = value.slice(0, 10);
       let formatted = value;
@@ -58,7 +61,12 @@ export default function VisitorCheckIn() {
     }
   };
 
-  const validateAndProceed = () => {
+  const validateAndProceed = async () => {
+    if (!inputValue) {
+      toast({ title: "Identification Required", variant: "destructive" });
+      return;
+    }
+
     if (idMethod === 'schoolId' && !/^\d{2}-\d{5}-\d{3}$/.test(inputValue)) {
       toast({ 
         title: "Invalid Format", 
@@ -67,6 +75,7 @@ export default function VisitorCheckIn() {
       });
       return;
     }
+
     if (idMethod === 'email' && !inputValue.toLowerCase().endsWith('@neu.edu.ph')) {
       toast({ 
         title: "Institutional Email Required", 
@@ -75,11 +84,54 @@ export default function VisitorCheckIn() {
       });
       return;
     }
-    if (!inputValue) {
-      toast({ title: "Identification Required", variant: "destructive" });
-      return;
+
+    setIsProcessing(true);
+
+    try {
+      const visitorsRef = collection(db, 'registeredVisitors');
+      const q = query(
+        visitorsRef, 
+        where(idMethod === 'schoolId' ? 'schoolId' : 'email', '==', inputValue),
+        limit(1)
+      );
+      
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        toast({
+          title: "Access Denied",
+          description: "Record not found. Please register at the Librarian's desk.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const visitorData = querySnapshot.docs[0].data();
+
+      if (visitorData.isBlocked) {
+        toast({
+          title: "Access Restricted",
+          description: "This account is currently blocked. Please contact Library Admin.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      // Success: Found and not blocked
+      setVerifiedVisitor(visitorData);
+      setStep('purpose');
+    } catch (error) {
+      console.error("Verification Error:", error);
+      toast({
+        title: "System Error",
+        description: "Unable to verify registration at this time.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
     }
-    setStep('purpose');
   };
 
   const handleCheckIn = async () => {
@@ -92,11 +144,11 @@ export default function VisitorCheckIn() {
     try {
       await addDoc(collection(db, 'visitorLogs'), {
         visitorId: user?.uid || 'anonymous-terminal',
-        schoolId: idMethod === 'schoolId' ? inputValue : 'N/A',
-        visitorEmail: idMethod === 'email' ? inputValue : 'N/A',
-        visitorName: 'Student', // Generalized as requested
-        visitorType: 'Student',
-        college: 'General',
+        schoolId: verifiedVisitor.schoolId || 'N/A',
+        visitorEmail: verifiedVisitor.email || 'N/A',
+        visitorName: verifiedVisitor.name || 'Student',
+        visitorType: verifiedVisitor.visitorType || 'Student',
+        college: verifiedVisitor.collegeDepartment || 'General',
         purpose: selectedPurpose,
         entryDateTime: new Date().toISOString()
       });
@@ -109,6 +161,7 @@ export default function VisitorCheckIn() {
         setIdMethod(null);
         setInputValue('');
         setSelectedPurpose('');
+        setVerifiedVisitor(null);
         setIsProcessing(false);
       }, 5000);
     } catch (e) {
@@ -140,7 +193,7 @@ export default function VisitorCheckIn() {
             <Card className="shadow-2xl border-none overflow-hidden rounded-3xl">
               <div className="bg-[#1B4332] p-10 text-center text-white">
                 <h2 className="text-3xl font-headline font-bold mb-2">Identification</h2>
-                <p className="text-emerald-100/70">Welcome, Student. Choose your identification method.</p>
+                <p className="text-emerald-100/70">Welcome, Student. Please verify your registration.</p>
               </div>
               <CardContent className="p-10 space-y-8 bg-white">
                 {!idMethod ? (
@@ -180,6 +233,7 @@ export default function VisitorCheckIn() {
                         onChange={handleIdInput}
                         className="h-16 text-2xl text-center font-mono tracking-widest border-2 border-emerald-100 focus:border-[#1B4332] rounded-2xl bg-emerald-50/20"
                         autoFocus
+                        disabled={isProcessing}
                       />
                       {idMethod === 'schoolId' && (
                         <div className="py-6 flex flex-col items-center justify-center bg-emerald-50/50 rounded-2xl border-2 border-dashed border-emerald-200">
@@ -190,11 +244,13 @@ export default function VisitorCheckIn() {
                     </div>
                     
                     <div className="flex gap-4">
-                      <Button variant="ghost" className="h-14 flex-1 rounded-xl text-emerald-800 hover:bg-emerald-50 font-bold" onClick={() => { setIdMethod(null); setInputValue(''); }}>Back</Button>
+                      <Button variant="ghost" className="h-14 flex-1 rounded-xl text-emerald-800 hover:bg-emerald-50 font-bold" onClick={() => { setIdMethod(null); setInputValue(''); }} disabled={isProcessing}>Back</Button>
                       <Button 
                         className="h-14 flex-[2] bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xl font-headline rounded-xl shadow-lg" 
                         onClick={validateAndProceed}
+                        disabled={isProcessing}
                       >
+                        {isProcessing ? <Loader2 className="animate-spin mr-2" /> : null}
                         Verify & Continue
                       </Button>
                     </div>
@@ -213,7 +269,7 @@ export default function VisitorCheckIn() {
           {step === 'purpose' && (
             <Card className="shadow-2xl border-none rounded-3xl overflow-hidden">
               <CardHeader className="bg-[#1B4332] text-white text-center py-10">
-                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, Student!</CardTitle>
+                <CardTitle className="text-4xl font-headline font-bold">Mabuhay, {verifiedVisitor?.name.split(' ')[0]}!</CardTitle>
                 <CardDescription className="text-emerald-100 text-lg">Select your purpose for visiting today</CardDescription>
               </CardHeader>
               <CardContent className="p-10 space-y-8 bg-white">

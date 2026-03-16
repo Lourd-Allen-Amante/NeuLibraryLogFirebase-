@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * NEU Library Visitor Log - Security Rules v1.0.5
-     * Explicitly authorizing Lourd Allen Amante for all admin collections.
+     * NEU Library Visitor Log - Security Rules v1.0.8
+     * Optimized for Strict Registration Verification.
      */
 
     function isSignedIn() {
@@ -21,7 +21,9 @@ service cloud.firestore {
     }
 
     match /registeredVisitors/{visitorId} {
-      allow get, list: if isAdmin();
+      // Allow any signed-in user (including anonymous terminal sessions) to query 
+      // registration status for verification purposes.
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
