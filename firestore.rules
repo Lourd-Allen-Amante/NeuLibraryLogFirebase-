@@ -19,14 +19,12 @@ service cloud.firestore {
      * 
      * Key Security Decisions:
      * 1. RBAC via Existence: Admin status is determined by checking if a document exists 
-     *    in the /roles_admin collection for the current user's UID.
+     *    in the /roles_admin collection for the current user's UID or if the user's 
+     *    email is explicitly whitelisted.
      * 2. Log Integrity: Regular users can create logs (if the visitorId matches their UID) 
      *    but cannot read, update, or delete them. This prevents tampering with entry history.
      * 3. Profile Protection: Users can manage their own profiles, but sensitive fields 
      *    like 'role' and 'isBlocked' are protected from self-modification.
-     * 4. Denormalization: Visitor logs contain denormalized visitor data (name, college) 
-     *    to allow Admins to perform performant filtered queries without needing to 
-     *    fetch individual user profiles for every log entry.
      */
 
     // --- Helper Functions ---
@@ -41,39 +39,33 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if the user exists in the admin roles collection. */
+    /** @description Checks if the user exists in the admin roles collection or is whitelisted by email. */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid)) ||
+        request.auth.token.email == 'jcesperanza@neu.edu.ph' ||
+        request.auth.token.email == 'lourdallen.amante@neu.edu.ph'
+      );
     }
-
-    // The 'isExistingOwner' function was unused and incorrectly referenced 'resource'
-    // in a top-level helper function context. It has been removed.
 
     // --- Collection Rules ---
 
     /**
      * @description Rules for user profiles. Users can manage their own data; Admins can view and block users.
      * @path /users/{userId}
-     * @allow get: if isOwner(userId) || isAdmin();
-     * @deny update: if request.resource.data.role != resource.data.role (Prevents self-promotion).
-     * @principle Path-based ownership and attribute-level protection.
      */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       // Users can update their own profile, but cannot change 'role' or 'isBlocked'.
-      // Admins can update any profile freely.
       allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
       allow delete: if isAdmin();
     }
 
     /**
-     * @description Admin role markers. Only existing admins can manage the admin list.
+     * @description Admin role markers.
      * @path /roles_admin/{userId}
-     * @allow get: if isSignedIn();
-     * @deny create: if !isAdmin();
-     * @principle RBAC via "Existence over Content".
      */
     match /roles_admin/{userId} {
       allow get, list: if isSignedIn();
@@ -81,27 +73,12 @@ service cloud.firestore {
     }
 
     /**
-     * @description Standardized reasons for library visits. Publicly readable by users; Admin writable.
-     * @path /purposeOfVisits/{purposeId}
-     * @allow list: if isSignedIn();
-     * @deny create: if !isAdmin();
-     * @principle Global lookup data pattern.
-     */
-    match /purposeOfVisits/{purposeId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-    }
-
-    /**
      * @description Audit logs for library entries. Users can log their own visits; Admins query for stats.
      * @path /visitorLogs/{logId}
-     * @allow create: if isSignedIn() && request.resource.data.visitorId == request.auth.uid;
-     * @deny get, list: if !isAdmin();
-     * @principle Write-only for users (integrity), Read-only for admins (audit).
      */
     match /visitorLogs/{logId} {
       allow get, list: if isAdmin();
-      allow create: if isSignedIn() && request.resource.data.visitorId == request.auth.uid;
+      allow create: if isSignedIn() && (request.resource.data.visitorId == request.auth.uid || request.auth.token.firebase.sign_in_provider == 'anonymous');
       allow update, delete: if isAdmin();
     }
   }

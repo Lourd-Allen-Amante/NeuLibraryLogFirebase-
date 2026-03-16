@@ -18,19 +18,11 @@ import {
   ShieldAlert, 
   TrendingUp,
   Search,
-  Filter,
-  MoreVertical,
   Sparkles,
   Loader2,
-  Trash2,
   CheckCircle,
-  LogOut,
   FileDown,
-  Calendar as CalendarIcon,
-  Download,
-  CreditCard,
-  UserPlus,
-  ShieldX
+  UserPlus
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,35 +38,22 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "@/components/ui/calendar";
-import { format, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
 import { useFirestore, useCollection, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc } from 'firebase/firestore';
-import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { startOfDay, endOfDay, parseISO, subDays, format } from 'date-fns';
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -83,9 +62,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [purposeFilter, setPurposeFilter] = useState('All');
-  const [collegeFilter, setCollegeFilter] = useState('All');
   const [visitorTypeFilter, setVisitorTypeFilter] = useState('All'); 
-  const [dateRange, setDateRange] = useState<{from: Date | undefined, to: Date | undefined}>({
+  const [dateRange] = useState({
     from: subDays(new Date(), 7),
     to: new Date()
   });
@@ -115,18 +93,15 @@ export default function AdminDashboard() {
       
       const matchesSearch = 
         log.visitorName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        log.college?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.schoolId?.includes(searchQuery);
       
       const matchesPurpose = purposeFilter === 'All' || log.purpose === purposeFilter;
-      const matchesCollege = collegeFilter === 'All' || log.college === collegeFilter;
-      
       const matchesType = visitorTypeFilter === 'All' || 
                          (visitorTypeFilter === 'Employee' ? (log.visitorType === 'Faculty' || log.visitorType === 'Staff') : log.visitorType === visitorTypeFilter);
       
-      return inDateRange && matchesSearch && matchesPurpose && matchesCollege && matchesType;
+      return inDateRange && matchesSearch && matchesPurpose && matchesType;
     });
-  }, [logs, searchQuery, purposeFilter, collegeFilter, visitorTypeFilter, dateRange]);
+  }, [logs, searchQuery, purposeFilter, visitorTypeFilter, dateRange]);
 
   const stats = useMemo(() => {
     const total = filteredLogs.length;
@@ -158,7 +133,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Actions
   const toggleBlockStatus = (userId: string, currentStatus: boolean) => {
     const userRef = doc(db, 'users', userId);
     updateDocumentNonBlocking(userRef, { isBlocked: !currentStatus });
@@ -188,6 +162,9 @@ export default function AdminDashboard() {
     (e.target as HTMLFormElement).reset();
   };
 
+  const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
+  const hasAccess = !!adminRole || isSuperUser;
+
   if (isAdminLoading || isLogsLoading || isUsersLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F1F5F8]">
@@ -195,9 +172,6 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
-  const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph';
-  const hasAccess = !!adminRole || isSuperUser;
 
   if (!hasAccess) {
     return (
@@ -212,7 +186,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F0FDF4] flex flex-col font-body">
-      {/* Green Header - Matching Screenshot */}
       <header className="bg-[#1B4332] text-white px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           {neuLogo?.imageUrl && (
@@ -299,19 +272,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <Card className="lg:col-span-2 border-emerald-100 shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg font-bold text-[#1B4332]">7-Day Visitation Trends</CardTitle>
-                  <div className="flex gap-2">
-                    <Select value={purposeFilter} onValueChange={setPurposeFilter}>
-                      <SelectTrigger className="w-[140px] h-8 text-xs bg-white border-emerald-100"><SelectValue placeholder="All Purposes" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All Purposes</SelectItem>
-                        <SelectItem value="Reading Books">Reading Books</SelectItem>
-                        <SelectItem value="Research in Thesis">Research</SelectItem>
-                        <SelectItem value="Use of Computer">Computer Use</SelectItem>
-                        <SelectItem value="Doing Assignments">Assignments</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <CardTitle className="text-lg font-bold text-[#1B4332]">Visitation Trends</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
@@ -371,14 +332,6 @@ export default function AdminDashboard() {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                 />
-                <Select value={visitorTypeFilter} onValueChange={setVisitorTypeFilter}>
-                  <SelectTrigger className="w-[140px] h-9 text-xs bg-white border-emerald-100"><SelectValue placeholder="Type" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Types</SelectItem>
-                    <SelectItem value="Student">Students Only</SelectItem>
-                    <SelectItem value="Employee">Employees Only</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardHeader>
             <Table>
@@ -386,7 +339,6 @@ export default function AdminDashboard() {
                 <TableRow>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Visitor</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">ID / Type</TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase text-emerald-800">College</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Activity</TableHead>
                   <TableHead className="text-[10px] font-bold uppercase text-emerald-800">Time</TableHead>
                 </TableRow>
@@ -401,7 +353,6 @@ export default function AdminDashboard() {
                         <Badge variant="outline" className="w-fit text-[8px] px-1.5 py-0 mt-1 border-emerald-200 text-emerald-700">{log.visitorType}</Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs">{log.college}</TableCell>
                     <TableCell className="text-xs font-semibold text-emerald-700">{log.purpose}</TableCell>
                     <TableCell className="text-[10px] font-mono">{format(parseISO(log.entryDateTime), 'HH:mm | MMM d')}</TableCell>
                   </TableRow>
@@ -413,7 +364,6 @@ export default function AdminDashboard() {
 
         {activeTab === 'manage' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Registered Visitors - Left */}
             <div className="lg:col-span-7 space-y-6">
               <h2 className="text-2xl font-bold text-[#1B4332]">Registered Visitors</h2>
               <Card className="border-emerald-100 shadow-sm">
@@ -429,7 +379,6 @@ export default function AdminDashboard() {
                     <TableRow>
                       <TableHead className="text-[10px] font-bold uppercase">Name</TableHead>
                       <TableHead className="text-[10px] font-bold uppercase">ID</TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase">College/Office</TableHead>
                       <TableHead className="text-[10px] font-bold uppercase">Status</TableHead>
                       <TableHead className="text-[10px] font-bold uppercase text-right">Action</TableHead>
                     </TableRow>
@@ -439,7 +388,6 @@ export default function AdminDashboard() {
                       <TableRow key={user.id} className="border-emerald-50">
                         <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
                         <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
-                        <TableCell className="text-xs">{user.collegeOrOffice}</TableCell>
                         <TableCell>
                           <Badge className={cn(
                             "text-[9px] font-bold px-2 py-0.5 rounded-full",
@@ -468,44 +416,7 @@ export default function AdminDashboard() {
               </Card>
             </div>
 
-            {/* Right Column - Blocked & Add New */}
             <div className="lg:col-span-5 space-y-8">
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-[#1B4332]">Blocked Visitors</h2>
-                <Card className="border-emerald-100 shadow-sm">
-                  <CardHeader className="py-4 border-b border-emerald-50">
-                    <CardTitle className="text-md font-bold text-emerald-800">Blocked List</CardTitle>
-                  </CardHeader>
-                  <Table>
-                    <TableHeader className="bg-emerald-50/30">
-                      <TableRow>
-                        <TableHead className="text-[10px] font-bold uppercase">Name</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase">ID</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {allUsers?.filter(u => u.isBlocked).map((user) => (
-                        <TableRow key={user.id} className="border-emerald-50">
-                          <TableCell className="font-bold text-emerald-900 text-xs">{user.name}</TableCell>
-                          <TableCell className="text-xs font-mono">{user.schoolId}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-[10px] font-bold h-7 border-emerald-100 text-emerald-600 hover:bg-emerald-50"
-                              onClick={() => toggleBlockStatus(user.id, true)}
-                            >
-                              Unblock
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Card>
-              </div>
-
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-[#1B4332]">Add New Visitor</h2>
                 <Card className="border-emerald-100 shadow-sm">
@@ -514,34 +425,24 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label>
-                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
+                          <Input name="fullName" placeholder="Juan dela Cruz" className="h-10 text-xs rounded-lg border-emerald-100" required />
                         </div>
                         <div className="space-y-1.5">
                           <Label className="text-[10px] font-bold uppercase text-emerald-800/60">School ID</Label>
-                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
+                          <Input name="schoolId" placeholder="20XX-XXXXX" className="h-10 text-xs rounded-lg border-emerald-100" required />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional Email</Label>
-                        <Input name="email" type="email" placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">College / Office</Label>
-                          <Input name="college" placeholder="e.g. CICS, CAET..." className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500" required />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
-                          <Select name="type" defaultValue="Student">
-                            <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100 focus:ring-emerald-500"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Student">Student</SelectItem>
-                              <SelectItem value="Faculty">Faculty</SelectItem>
-                              <SelectItem value="Staff">Staff</SelectItem>
-                              <SelectItem value="Guest">Guest</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        <Label className="text-[10px] font-bold uppercase text-emerald-800/60">Type</Label>
+                        <Select name="type" defaultValue="Student">
+                          <SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Student">Student</SelectItem>
+                            <SelectItem value="Faculty">Faculty</SelectItem>
+                            <SelectItem value="Staff">Staff</SelectItem>
+                            <SelectItem value="Guest">Guest</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <Button type="submit" className="w-full bg-emerald-700 hover:bg-[#1B4332] text-white font-bold h-12 rounded-xl mt-2 shadow-lg">
                         <UserPlus className="mr-2 h-4 w-4" /> Add Visitor
