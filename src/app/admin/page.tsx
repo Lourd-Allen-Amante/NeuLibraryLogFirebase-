@@ -109,7 +109,8 @@ export default function AdminDashboard() {
 
         return dateMatch && purposeMatch && collegeMatch && typeMatch;
       })
-      .sort((a, b) => parseISO(a.entryDateTime).getTime() - parseISO(b.entryDateTime).getTime());
+      // Sorted by most recent timestamp first (latest visits at the top)
+      .sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
   }, [logs, dateFilter, purposeFilter, collegeFilter, typeFilter]);
 
   const stats = useMemo(() => {
@@ -133,7 +134,7 @@ export default function AdminDashboard() {
     return Array.from(colleges).sort();
   }, [logs]);
 
-  // Auto Capitalize Helper
+  // Auto Capitalize Helper (Every word)
   const handleNameInput = (val: string) => {
     const formatted = val
       .split(' ')
