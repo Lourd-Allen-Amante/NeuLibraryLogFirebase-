@@ -28,18 +28,14 @@ export default function VisitorCheckIn() {
   const [selectedPurpose, setSelectedPurpose] = useState<Purpose | ''>('');
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // To store the found visitor data
   const [verifiedVisitor, setVerifiedVisitor] = useState<any>(null);
 
-  // Ensure an anonymous session for logging if not logged in
   useEffect(() => {
     if (!user && auth) {
       signInAnonymously(auth).catch((err) => console.error("Anonymous auth failed", err));
     }
   }, [user, auth]);
 
-  // Real-time clock
   useEffect(() => {
     setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -63,24 +59,6 @@ export default function VisitorCheckIn() {
   const validateAndProceed = async () => {
     if (!inputValue) {
       toast({ title: "Identification Required", variant: "destructive" });
-      return;
-    }
-
-    if (idMethod === 'schoolId' && !/^\d{2}-\d{5}-\d{3}$/.test(inputValue)) {
-      toast({ 
-        title: "Invalid Format", 
-        description: "Please enter a valid School ID (00-00000-000).", 
-        variant: "destructive" 
-      });
-      return;
-    }
-
-    if (idMethod === 'email' && !inputValue.toLowerCase().endsWith('@neu.edu.ph')) {
-      toast({ 
-        title: "Institutional Email Required", 
-        description: "Please use your official @neu.edu.ph email.", 
-        variant: "destructive" 
-      });
       return;
     }
 
@@ -118,7 +96,6 @@ export default function VisitorCheckIn() {
         return;
       }
 
-      // Success: Found and not blocked
       setVerifiedVisitor(visitorData);
       setStep('purpose');
     } catch (error) {
@@ -154,7 +131,6 @@ export default function VisitorCheckIn() {
 
       setStep('welcome');
       
-      // Auto-reset the terminal for the next student
       setTimeout(() => {
         setStep('identify');
         setIdMethod(null);
@@ -234,12 +210,6 @@ export default function VisitorCheckIn() {
                         autoFocus
                         disabled={isProcessing}
                       />
-                      {idMethod === 'schoolId' && (
-                        <div className="py-6 flex flex-col items-center justify-center bg-emerald-50/50 rounded-2xl border-2 border-dashed border-emerald-200">
-                           <Scan className="h-10 w-10 text-emerald-600 animate-pulse mb-2" />
-                           <span className="text-[10px] uppercase font-bold text-emerald-800/40 tracking-[0.2em]">RFID Sensor Active</span>
-                        </div>
-                      )}
                     </div>
                     
                     <div className="flex gap-4">
@@ -255,7 +225,6 @@ export default function VisitorCheckIn() {
                     </div>
                   </div>
                 )}
-                
                 <Link href="/" className="block">
                   <Button variant="ghost" className="w-full h-12 text-emerald-800/40 hover:text-[#1B4332] font-bold text-[10px] uppercase tracking-widest">
                     <ArrowLeft className="mr-2 h-3 w-3" /> Back to Portal
@@ -319,21 +288,11 @@ export default function VisitorCheckIn() {
                   <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to NEU Library!</h1>
                   <p className="text-2xl font-light text-emerald-50 opacity-90">Visitor Validated</p>
                 </div>
-                <div className="pt-10">
-                  <div className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 rounded-full text-xs font-medium uppercase tracking-widest">
-                    <Clock className="h-4 w-4 text-emerald-400" />
-                    Terminal resetting in 5 seconds...
-                  </div>
-                </div>
               </CardContent>
             </Card>
           )}
         </div>
       </main>
-      
-      <footer className="p-6 text-center text-emerald-800/10 text-[8px] uppercase tracking-[0.4em]">
-        New Era University • Library Terminal Management
-      </footer>
     </div>
   );
 }

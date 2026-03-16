@@ -84,7 +84,7 @@ import autoTable from 'jspdf-autotable';
 import { DateRange } from "react-day-picker";
 
 const CHART_COLORS = [
-  "hsl(153 43% 18%)", // Primary
+  "hsl(153 43% 18%)", 
   "hsl(153 43% 30%)", 
   "hsl(153 43% 45%)", 
   "hsl(153 20% 60%)", 
@@ -99,7 +99,6 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   
-  // Filtering States
   const [dateFilterMode, setDateFilterMode] = useState<'preset' | 'custom'>('preset');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -111,14 +110,12 @@ export default function AdminDashboard() {
   const [collegeFilter, setCollegeFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
-  // Form States for Add Visitor
   const [formName, setFormName] = useState('');
   const [formSchoolId, setFormSchoolId] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formCollege, setFormCollege] = useState('');
   const [formType, setFormType] = useState('Student');
 
-  // Firestore Queries
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminLoading } = useDoc(adminRef);
 
@@ -130,7 +127,6 @@ export default function AdminDashboard() {
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
 
-  // Logic for statistics and filtering
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
     
@@ -139,7 +135,6 @@ export default function AdminDashboard() {
         const logDate = parseISO(log.entryDateTime);
         const now = new Date();
         
-        // Date Filtering
         let dateMatch = true;
         if (dateFilterMode === 'preset') {
           if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
@@ -149,11 +144,9 @@ export default function AdminDashboard() {
           dateMatch = isWithinInterval(logDate, { start: dateRange.from, end: dateRange.to });
         }
 
-        // Category Filtering
         const purposeMatch = purposeFilter === 'all' || log.purpose === purposeFilter;
         const collegeMatch = collegeFilter === 'all' || log.college === collegeFilter;
         
-        // Type Filtering (Student vs Employee)
         let typeMatch = true;
         if (typeFilter === 'Student') typeMatch = log.visitorType === 'Student';
         if (typeFilter === 'Employee') typeMatch = ['Faculty', 'Staff'].includes(log.visitorType);
@@ -163,7 +156,6 @@ export default function AdminDashboard() {
   }, [logs, dateFilterMode, dateFilter, dateRange, purposeFilter, collegeFilter, typeFilter]);
 
   const sortedLogs = useMemo(() => {
-    // SORTED FROM LATEST TO EARLIEST (Newest at top)
     return [...filteredLogs].sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
   }, [filteredLogs]);
 
@@ -257,7 +249,6 @@ export default function AdminDashboard() {
       exportLogs = logs.filter(l => isWithinInterval(parseISO(l.entryDateTime), { start: subDays(now, 30), end: now }));
     }
 
-    // Sort export logs Newest to Oldest
     exportLogs.sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
 
     const pdfDoc = new jsPDF();
@@ -289,14 +280,6 @@ export default function AdminDashboard() {
     pdfDoc.save(`NEU_Library_Logs_${period}_${format(now, 'yyyyMMdd')}.pdf`);
     setIsExporting(false);
     toast({ title: "PDF Exported Successfully" });
-  };
-
-  const handleIdInput = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 10);
-    let formatted = digits;
-    if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
-    if (digits.length > 7) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 7)}-${digits.slice(7)}`;
-    setFormSchoolId(formatted);
   };
 
   const isSuperUser = authUser?.email === 'jcesperanza@neu.edu.ph' || authUser?.email === 'lourdallen.amante@neu.edu.ph';
@@ -477,13 +460,13 @@ export default function AdminDashboard() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="h-9 text-xs font-bold border-emerald-100 text-emerald-700 hover:bg-emerald-50" disabled={isExporting}>
-                      {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <FileDown className="mr-2 h-3 w-3" />} Generate Report
+                      {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <FileDown className="mr-2 h-3 w-3" />} Export PDF
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={() => handleExportPdf('today')} className="text-xs font-bold cursor-pointer">Export Today&apos;s Logs</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportPdf('week')} className="text-xs font-bold cursor-pointer">Export This Week</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportPdf('month')} className="text-xs font-bold cursor-pointer">Export Last 30 Days</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('today')} className="text-xs font-bold cursor-pointer">Today's Logs</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('week')} className="text-xs font-bold cursor-pointer">This Week</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('month')} className="text-xs font-bold cursor-pointer">Last 30 Days</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -569,7 +552,7 @@ export default function AdminDashboard() {
                 }}>
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Full Name</Label><Input value={formName} onChange={(e) => setFormName(e.target.value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '))} placeholder="e.g. Jorus Junio" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
-                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional ID</Label><Input value={formSchoolId} onChange={(e) => handleIdInput(e.target.value)} placeholder="00-00000-000" className="h-10 text-xs rounded-lg border-emerald-100 font-mono" required /></div>
+                    <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Institutional ID</Label><Input value={formSchoolId} onChange={(e) => setFormSchoolId(e.target.value)} placeholder="00-00000-000" className="h-10 text-xs rounded-lg border-emerald-100 font-mono" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">NEU Email</Label><Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="name@neu.edu.ph" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">College</Label><Input value={formCollege} onChange={(e) => setFormCollege(e.target.value.toUpperCase())} placeholder="e.g. CICS" className="h-10 text-xs rounded-lg border-emerald-100" required /></div>
                     <div className="space-y-1.5"><Label className="text-[10px] font-bold uppercase text-emerald-800/60">Role</Label><Select value={formType} onValueChange={setFormType}><SelectTrigger className="h-10 text-xs rounded-lg border-emerald-100"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Student">Student</SelectItem><SelectItem value="Faculty">Faculty</SelectItem><SelectItem value="Staff">Staff</SelectItem></SelectContent></Select></div>
