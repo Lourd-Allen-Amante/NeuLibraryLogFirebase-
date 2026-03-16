@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -58,7 +59,7 @@ export default function LandingPage() {
             priority
           />
         )}
-        <div className="absolute inset-0 bg-[#0a1f16]/90 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-[#0a1f16]/75 backdrop-blur-[2px]"></div>
       </div>
 
       {/* Header */}

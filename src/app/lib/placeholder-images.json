@@ -9,9 +9,9 @@
     },
     {
       "id": "library-bg",
-      "description": "Modern library interior",
-      "imageUrl": "https://picsum.photos/seed/neu-lib/1920/1080",
-      "imageHint": "modern library"
+      "description": "NEU Main Campus Background",
+      "imageUrl": "https://upload.wikimedia.org/wikipedia/commons/3/31/NEU_Main_Campus%2C_Central_Avenue%2C_New_Era%2C_Quezon_City.jpg",
+      "imageHint": "university campus"
     },
     {
       "id": "admin-avatar",
