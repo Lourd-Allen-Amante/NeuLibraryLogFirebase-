@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -26,7 +25,7 @@ export default function LandingPage() {
       await signInWithPopup(auth, provider);
       toast({
         title: "Welcome back!",
-        description: "Successfully signed in to ScholarFlow.",
+        description: "Successfully signed in to New Era INC Library.",
       });
     } catch (error: any) {
       toast({
@@ -75,7 +74,7 @@ export default function LandingPage() {
             />
           )}
           <span className="text-white font-headline font-bold text-xl tracking-tight">
-            Scholar<span className="text-emerald-400">Flow</span>
+            New Era <span className="text-emerald-400">INC Library</span>
           </span>
         </div>
         
@@ -104,7 +103,7 @@ export default function LandingPage() {
             Library Gateway
           </h1>
           <p className="text-lg md:text-xl text-emerald-100 max-w-2xl mx-auto font-light">
-            Secure terminal and administration for <span className="font-bold border-b-2 border-emerald-50">New Era University Library</span>.
+            Secure terminal and administration for <span className="font-bold border-b-2 border-emerald-50">New Era INC Library</span>.
           </p>
         </div>
 

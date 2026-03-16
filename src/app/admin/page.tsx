@@ -70,7 +70,7 @@ import { collection, doc, setDoc } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, startOfDay, eachDayOfInterval, isSameMonth } from 'date-fns';
+import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.setTextColor(27, 67, 50);
-    doc.text("New Era University Library", 14, 20);
+    doc.text("New Era INC Library", 14, 20);
     doc.setFontSize(12);
     doc.setTextColor(100);
     doc.text(`Visitor Log Report - ${period.toUpperCase()}`, 14, 30);
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
       styles: { fontSize: 8 },
     });
 
-    doc.save(`NEU_Library_Logs_${period}.pdf`);
+    doc.save(`New_Era_INC_Library_Logs_${period}.pdf`);
     setIsExporting(false);
     toast({ title: "PDF Exported Successfully" });
   };
@@ -349,7 +349,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-4">
           {neuLogo?.imageUrl && <Image src={neuLogo.imageUrl} alt="NEU" width={40} height={40} className="bg-white rounded-full p-1 shadow-md" />}
           <div>
-            <h1 className="text-lg font-bold tracking-tight">NEU Library</h1>
+            <h1 className="text-lg font-bold tracking-tight">New Era INC Library</h1>
             <p className="text-[10px] uppercase tracking-widest text-emerald-200/60 font-bold">Admin Console</p>
           </div>
         </div>

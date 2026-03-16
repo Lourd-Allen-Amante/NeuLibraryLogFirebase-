@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'NEU ScholarFlow - Library Log System',
-  description: 'Secure visitor check-in and administration for NEU Library',
+  title: 'New Era INC Library - Log System',
+  description: 'Secure visitor check-in and administration for New Era INC Library',
 };
 
 export default function RootLayout({

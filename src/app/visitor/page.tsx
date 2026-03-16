@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -176,7 +175,7 @@ export default function VisitorCheckIn() {
       <header className="p-6 border-b border-emerald-100 bg-white flex justify-between items-center shadow-sm">
         <Link href="/" className="flex items-center gap-2 text-[#1B4332] font-headline font-bold text-2xl">
           <DoorOpen className="h-8 w-8 text-emerald-600" />
-          Library Terminal
+          New Era INC Library Terminal
         </Link>
         <div className="flex flex-col items-end">
           <span className="text-[10px] text-emerald-800/60 uppercase tracking-[0.2em] font-bold">Terminal Clock</span>
@@ -317,7 +316,7 @@ export default function VisitorCheckIn() {
                   <CheckCircle2 className="h-24 w-24 text-emerald-400" />
                 </div>
                 <div className="space-y-4">
-                  <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to NEU Library!</h1>
+                  <h1 className="text-6xl font-headline font-bold tracking-tight">Welcome to New Era INC Library!</h1>
                   <p className="text-2xl font-light text-emerald-50 opacity-90">Visitor Validated</p>
                 </div>
                 <div className="pt-10">
