@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut } from "lucide-react";
@@ -18,15 +18,27 @@ export default function LandingPage() {
   const { auth } = useAuth() ? { auth: useAuth() } : { auth: null };
   const { user, isUserLoading } = useUser();
 
+  // Specific Greeting for Regular User jcesperanza@neu.edu.ph
+  useEffect(() => {
+    if (user?.email === 'jcesperanza@neu.edu.ph') {
+      toast({
+        title: "Welcome to NEU Library!",
+        description: "You have successfully logged into the system.",
+      });
+    }
+  }, [user, toast]);
+
   const handleGoogleLogin = async () => {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      toast({
-        title: "Welcome back!",
-        description: "Successfully signed in to New Era INC Library.",
-      });
+      if (auth.currentUser?.email !== 'jcesperanza@neu.edu.ph') {
+        toast({
+          title: "Welcome back!",
+          description: "Successfully signed in to New Era INC Library.",
+        });
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
