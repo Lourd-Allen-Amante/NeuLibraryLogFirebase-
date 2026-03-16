@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -35,8 +36,15 @@ export default function LandingPage() {
   // Specific Greeting for Regular User - flexible matching for typo
   useEffect(() => {
     if (!user?.email) return;
-    const email = user.email.toLowerCase();
-    if (email === 'jcesperanza@neu.edu.ph' || email === 'jceperanza@neu.edu.ph') {
+    const emailLower = user.email.toLowerCase();
+    const authorizedEmails = [
+      'jcesperanza@neu.edu.ph',
+      'jcezperanza@neu.edu.ph',
+      'jceperanza@neu.edu.ph',
+      'lourdallen.amante@neu.edu.ph'
+    ];
+    
+    if (authorizedEmails.includes(emailLower)) {
       toast({
         title: "Welcome to NEU Library!",
         description: "You have successfully logged into the system.",
@@ -50,7 +58,7 @@ export default function LandingPage() {
 
     setIsLoggingIn(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email.trim(), password);
       toast({
         title: "Access Granted",
         description: `Welcome back, ${email.split('@')[0]}!`,
@@ -61,11 +69,14 @@ export default function LandingPage() {
     } catch (error: any) {
       console.error("Login error:", error);
       let message = "Invalid email or password.";
+      
       // Handle various Firebase Auth error codes
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = "Incorrect credentials. Please try again.";
+        message = "Incorrect credentials. Please verify your email spelling and password.";
       } else if (error.code === 'auth/user-disabled') {
         message = "This account has been disabled.";
+      } else if (error.code === 'auth/too-many-requests') {
+        message = "Too many failed attempts. Please try again later.";
       }
       
       toast({

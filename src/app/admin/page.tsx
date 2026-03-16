@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -283,14 +284,20 @@ export default function AdminDashboard() {
     toast({ title: "PDF Exported Successfully" });
   };
 
-  // SUPERUSER CHECK - Robust matching for jcesperanza and lourdallen
+  // SUPERUSER CHECK - Robust matching including common typo variants
   const isSuperUser = useMemo(() => {
     if (!authUser?.email) return false;
     const email = authUser.email.toLowerCase();
-    // Supporting jcesperanza (as requested) and potentially jceperanza (as seen in screenshot)
-    return email === 'jcesperanza@neu.edu.ph' || 
-           email === 'jceperanza@neu.edu.ph' || 
-           email === 'lourdallen.amante@neu.edu.ph';
+    
+    // We match against the requested emails and common variants found in screenshots
+    const superusers = [
+      'jcesperanza@neu.edu.ph',
+      'jcezperanza@neu.edu.ph', // Typo with 'z'
+      'jceperanza@neu.edu.ph',  // Typo missing 's'
+      'lourdallen.amante@neu.edu.ph'
+    ];
+    
+    return superusers.includes(email);
   }, [authUser]);
 
   const hasAccess = !!adminRole || isSuperUser;
@@ -322,7 +329,7 @@ export default function AdminDashboard() {
             <p className="text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">Debug Session Info</p>
             <p className="text-sm text-rose-700">Logged in as: <span className="font-bold underline">{authUser?.email || 'Guest (Anonymous)'}</span></p>
             <p className="text-[10px] text-rose-600 mt-2 italic leading-relaxed">
-              If the email above doesn't match your superuser emails exactly (including spelling), access will be denied. Check for typos in your Firebase Console.
+              If the email above doesn't match the authorized list exactly (including spelling), access will be denied. Check for typos in your Firebase Console.
             </p>
           </div>
         </div>
