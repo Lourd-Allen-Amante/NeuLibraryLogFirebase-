@@ -1,9 +1,25 @@
-
 {
   "entities": {
+    "VisitorLog": {
+      "title": "VisitorLog",
+      "description": "A record of a single library visit entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "visitorId": { "type": "string", "description": "The UID of the visitor (if logged in) or terminal ID." },
+        "visitorName": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "visitorEmail": { "type": "string" },
+        "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff"] },
+        "college": { "type": "string" },
+        "purpose": { "type": "string" },
+        "entryDateTime": { "type": "string", "format": "date-time" }
+      },
+      "required": ["visitorName", "schoolId", "purpose", "entryDateTime"]
+    },
     "RegisteredVisitor": {
-      "title": "Registered Visitor",
-      "description": "Information about a patron registered to use the library.",
+      "title": "RegisteredVisitor",
+      "description": "A pre-registered student or faculty member.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -11,51 +27,36 @@
         "schoolId": { "type": "string" },
         "email": { "type": "string" },
         "collegeDepartment": { "type": "string" },
-        "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff"] },
+        "visitorType": { "type": "string" },
         "isBlocked": { "type": "boolean" }
       },
-      "required": ["name", "schoolId", "email", "visitorType"]
-    },
-    "VisitorLog": {
-      "title": "Visitor Log",
-      "description": "A record of a library visit check-in.",
-      "type": "object",
-      "properties": {
-        "visitorId": { "type": "string" },
-        "visitorName": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "visitorEmail": { "type": "string" },
-        "visitorType": { "type": "string" },
-        "college": { "type": "string" },
-        "purpose": { "type": "string" },
-        "entryDateTime": { "type": "string", "format": "date-time" }
-      },
-      "required": ["visitorName", "schoolId", "purpose", "entryDateTime"]
+      "required": ["name", "schoolId", "email"]
     },
     "AdminRole": {
-      "title": "Admin Role",
-      "description": "User role assignment for administrators.",
+      "title": "AdminRole",
+      "description": "Designation of administrative privileges for a specific user.",
       "type": "object",
       "properties": {
-        "role": { "type": "string", "enum": ["admin"] }
+        "uid": { "type": "string" },
+        "grantedAt": { "type": "string", "format": "date-time" }
       }
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
-    "/registeredVisitors/{visitorId}": {
-      "schema": "RegisteredVisitor",
-      "description": "Collection of all registered patrons."
-    },
     "/visitorLogs/{logId}": {
       "schema": "VisitorLog",
-      "description": "Logs of library check-ins."
+      "description": "Collection of all library entry logs."
     },
-    "/roles_admin/{userId}": {
+    "/registeredVisitors/{visitorId}": {
+      "schema": "RegisteredVisitor",
+      "description": "Database of authorized students and faculty."
+    },
+    "/roles_admin/{uid}": {
       "schema": "AdminRole",
-      "description": "Firestore-based admin role check."
+      "description": "Registry of authorized library administrators."
     }
   }
 }
