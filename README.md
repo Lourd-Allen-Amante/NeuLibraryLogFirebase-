@@ -2,7 +2,7 @@
 
 A secure, high-performance visitor check-in and administration system for the New Era INC Library.
 
-LIVE APP: [NEU Library Log](https://9000-firebase-studio-1773383619654.cluster-yylgzpipxrar4v4a72liastuqy.cloudworkstations.dev)
+LIVE APP: [NEU Library Log](https://neu-library-log-firebase.vercel.app)
 ---
 ### Authorized Administrators
 The following emails are pre-authorized for Admin Console access:
