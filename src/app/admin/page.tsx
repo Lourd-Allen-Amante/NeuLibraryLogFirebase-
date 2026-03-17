@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -17,7 +16,8 @@ import {
   BarChart3,
   Calendar as CalendarIcon,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ import { VISIT_PURPOSES } from '@/lib/types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DateRange } from "react-day-picker";
+import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
 
 const CHART_COLORS = [
   "hsl(153 43% 18%)", 
@@ -101,13 +102,12 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
   
   const [dateFilterMode, setDateFilterMode] = useState<'preset' | 'custom'>('preset');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 7),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
   const [purposeFilter, setPurposeFilter] = useState<string>('all');
   const [collegeFilter, setCollegeFilter] = useState<string>('all');
@@ -118,6 +118,14 @@ export default function AdminDashboard() {
   const [formEmail, setFormEmail] = useState('');
   const [formCollege, setFormCollege] = useState('');
   const [formType, setFormType] = useState('Student');
+
+  // Initialize date range in useEffect to avoid hydration mismatch
+  useEffect(() => {
+    setDateRange({
+      from: subDays(new Date(), 7),
+      to: new Date(),
+    });
+  }, []);
 
   const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRef);
@@ -233,6 +241,32 @@ export default function AdminDashboard() {
       fill: CHART_COLORS[index % CHART_COLORS.length]
     }));
   }, [filteredLogs]);
+
+  const handleAiAnalysis = async () => {
+    if (filteredLogs.length === 0) {
+      toast({ title: "No data to analyze", description: "Try adjusting your filters.", variant: "destructive" });
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAiSummary(null);
+
+    try {
+      const result = await adminVisitorTrendSummaries({
+        periodDescription: dateFilterMode === 'preset' ? dateFilter : 'custom range',
+        visitorEntries: filteredLogs.map(l => ({
+          timestamp: l.entryDateTime,
+          purposeOfVisit: l.purpose
+        }))
+      });
+      setAiSummary(result.summary);
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      toast({ title: "AI Analysis Failed", description: "Could not generate summary at this time.", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const handleExportPdf = (period: 'today' | 'week' | 'month') => {
     if (!logs || logs.length === 0) {
@@ -449,6 +483,42 @@ export default function AdminDashboard() {
               <Card className="border-emerald-100 shadow-sm bg-white"><CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Active Employees</CardDescription><CardTitle className="text-4xl font-headline text-emerald-700">{stats.employees}</CardTitle></CardHeader></Card>
               <Card className="border-emerald-100 shadow-sm bg-emerald-50"><CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Primary Activity</CardDescription><CardTitle className="text-lg font-bold text-[#1B4332] truncate">{stats.topPurpose}</CardTitle></CardHeader></Card>
             </div>
+
+            {/* AI Insights Section */}
+            <Card className="border-emerald-200 shadow-md bg-white overflow-hidden">
+              <CardHeader className="bg-emerald-50/50 flex flex-row items-center justify-between py-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-emerald-600" />
+                  <CardTitle className="text-md font-bold text-emerald-900">AI-Powered Trend Insights</CardTitle>
+                </div>
+                <Button 
+                  onClick={handleAiAnalysis} 
+                  disabled={isAnalyzing} 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 px-4 rounded-lg shadow-sm"
+                >
+                  {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                  Generate Analysis
+                </Button>
+              </CardHeader>
+              <CardContent className="p-6">
+                {isAnalyzing ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+                    <p className="text-sm font-medium text-emerald-800/60">Analyzing library visitor patterns...</p>
+                  </div>
+                ) : aiSummary ? (
+                  <div className="prose prose-sm max-w-none text-emerald-900 leading-relaxed animate-in fade-in slide-in-from-top-2 duration-500">
+                    <p className="bg-emerald-50/30 p-4 rounded-xl border border-emerald-100/50 italic">
+                      "{aiSummary}"
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground italic">Click the button above to generate a natural language summary of current trends.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <Card className="border-emerald-100 shadow-sm">
