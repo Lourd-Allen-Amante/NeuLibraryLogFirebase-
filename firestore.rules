@@ -1,31 +1,119 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper to check if user is a hardcoded superuser
-    function isSuperUser(auth) {
-      return auth.token.email in ['jcesperanza@neu.edu.ph', 'lourdallen.amante@neu.edu.ph'];
+
+    /**
+     * NEU SCHOLARFLOW SECURITY RULES
+     *
+     * Core Philosophy:
+     * This ruleset implements a hybrid Role-Based Access Control (RBAC) and Ownership model. 
+     * Security is enforced through identity verification via Firebase Auth and metadata stored 
+     * within the UserProfile documents.
+     *
+     * Data Structure:
+     * - /users/{userId}: Private user profiles containing roles ('admin', 'visitor') and 'isBlocked' status.
+     * - /visit_purposes/{visitPurposeId}: Global lookup table for library entry reasons.
+     * - /library_visits/{libraryVisitId}: Flat log of all library entries for administrative reporting.
+     *
+     * Key Security Decisions:
+     * 1. Authorization Independence: User roles and block statuses are denormalized into the 
+     *    user's document to allow for single-lookup authorization checks.
+     * 2. Administrative Oversight: Administrators have broad read/write access across all 
+     *    collections to facilitate monitoring and system management.
+     * 3. Defensive Writes: Visitors can only create library visit logs if their 'isBlocked' 
+     *    status is false, requiring a cross-document lookup to their own profile.
+     * 4. Immutable Logs: Library visit records are treated as audit logs; visitors can 
+     *    create them, but only administrators can modify or delete them.
+     */
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Helper to check if user has admin role in Firestore
-    function isAdmin(auth) {
-      return isSuperUser(auth) || exists(/databases/$(database)/documents/roles_admin/$(auth.uid));
+    /** @description Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /roles_admin/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+    /** @description Fetches the authenticated user's profile data. */
+    function currentUserData() {
+      // Ensure the user is authenticated before attempting to fetch their profile
+      return isSignedIn() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
     }
 
-    match /registeredVisitors/{visitorId} {
-      // Terminal needs to search, so allow read for everyone
-      allow read: if true;
-      allow write: if request.auth != null && isAdmin(request.auth);
+    /** @description Checks if the current user has the 'admin' role. */
+    function isAdmin() {
+      // Check for isSignedIn() first to avoid unnecessary currentUserData() calls for unauthenticated users
+      return isSignedIn() && currentUserData().role == 'admin';
     }
 
-    match /visitorLogs/{logId} {
-      // Terminal adds logs (even if anonymous)
-      allow create: if true;
-      allow read, update, delete: if request.auth != null && isAdmin(request.auth);
+    /** @description Checks if the current user is not blocked from the system. */
+    function isNotBlocked() {
+      // Check for isSignedIn() first to avoid unnecessary currentUserData() calls for unauthenticated users
+      return isSignedIn() && currentUserData().isBlocked == false;
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for user profiles. Users can manage their own profile (except roles), 
+     * while admins have full control for moderation.
+     * @path /users/{userId}
+     * @allow (get) If user is owner or an admin.
+     * @deny (list) If user is not an admin (prevents user enumeration).
+     * @principle Path-based ownership combined with attribute-based access control.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId);
+      // Users can update their profile, but cannot change their own 'role' or 'isBlocked' status.
+      // Admins have full update control.
+      allow update: if (isOwner(userId) && 
+                         request.resource.data.role == resource.data.role && 
+                         request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for visit purposes. This is a global lookup table.
+     * @path /visit_purposes/{visitPurposeId}
+     * @allow (get, list) Any authenticated user can read categories.
+     * @deny (write) Any non-admin user trying to modify categories.
+     * @principle Public Read with Admin-Only Writes.
+     */
+    match /visit_purposes/{visitPurposeId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for library visit logs. Visitors log their own visits; 
+     * admins monitor all activity.
+     * @path /library_visits/{libraryVisitId}
+     * @allow (create) If visitor is not blocked and records their own UID.
+     * @deny (update) If a visitor attempts to modify a visit log (only admins can edit/delete).
+     * @principle Relational integrity and audit logging.
+     */
+    match /library_visits/{libraryVisitId} {
+      // Admins see everything; Visitors can only fetch their own specific records if they have the ID.
+      // resource != null check is implicit for 'get' on an existing document.
+      allow get: if isAdmin() || (resource.data.visitorId == request.auth.uid);
+      
+      // Admin-only listing to support global reporting requirements.
+      allow list: if isAdmin();
+      
+      // Visitors create their own logs, but only if they are not currently blocked,
+      // and they are setting their own UID as the visitor.
+      allow create: if isSignedIn() && 
+                       isNotBlocked() && 
+                       request.resource.data.visitorId == request.auth.uid;
+      
+      // Updates and deletes are restricted to admins to preserve audit trail integrity.
+      allow update, delete: if isAdmin();
     }
   }
 }

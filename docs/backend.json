@@ -1,62 +1,159 @@
 {
   "entities": {
-    "VisitorLog": {
-      "title": "VisitorLog",
-      "description": "A record of a single library visit entry.",
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
       "type": "object",
+      "description": "Represents a user of the NEU ScholarFlow app, which can be either a library visitor or an administrator, storing their identifying information and system role.",
       "properties": {
-        "id": { "type": "string" },
-        "visitorId": { "type": "string", "description": "The UID of the visitor (if logged in) or terminal ID." },
-        "visitorName": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "visitorEmail": { "type": "string" },
-        "visitorType": { "type": "string", "enum": ["Student", "Faculty", "Staff"] },
-        "college": { "type": "string" },
-        "purpose": { "type": "string" },
-        "entryDateTime": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "institutionalEmail": {
+          "type": "string",
+          "description": "The institutional email address of the user, used for identification and as an alternative login credential.",
+          "format": "email"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The full name of the user, displayed upon successful check-in."
+        },
+        "collegeOrOffice": {
+          "type": "string",
+          "description": "The college or office the user belongs to, displayed upon successful check-in."
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system (e.g., 'visitor', 'admin')."
+        },
+        "isBlocked": {
+          "type": "boolean",
+          "description": "A flag indicating whether the user is currently blocked from entering the library by an administrator."
+        }
       },
-      "required": ["visitorName", "schoolId", "purpose", "entryDateTime"]
+      "required": [
+        "id",
+        "institutionalEmail",
+        "fullName",
+        "collegeOrOffice",
+        "role",
+        "isBlocked"
+      ]
     },
-    "RegisteredVisitor": {
-      "title": "RegisteredVisitor",
-      "description": "A pre-registered student or faculty member.",
+    "VisitPurpose": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VisitPurpose",
       "type": "object",
+      "description": "Defines the pre-selected categories for a visitor's reason for entering the library.",
       "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "email": { "type": "string" },
-        "collegeDepartment": { "type": "string" },
-        "visitorType": { "type": "string" },
-        "isBlocked": { "type": "boolean" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the VisitPurpose entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The descriptive name of the visit purpose (e.g., 'Reading Books', 'Research in Thesis', 'Use of Computer', 'Doing Assignments')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A more detailed explanation or context for the visit purpose."
+        }
       },
-      "required": ["name", "schoolId", "email"]
+      "required": [
+        "id",
+        "name"
+      ]
     },
-    "AdminRole": {
-      "title": "AdminRole",
-      "description": "Designation of administrative privileges for a specific user.",
+    "LibraryVisit": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LibraryVisit",
       "type": "object",
+      "description": "Records a single instance of a visitor entering the NEU Library, including the date, time, and their declared purpose.",
       "properties": {
-        "uid": { "type": "string" },
-        "grantedAt": { "type": "string", "format": "date-time" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the LibraryVisit entity."
+        },
+        "visitorId": {
+          "type": "string",
+          "description": "Reference to the UserProfile entity representing the visitor who made this entry. (Relationship: UserProfile 1:N LibraryVisit)"
+        },
+        "entryDateTime": {
+          "type": "string",
+          "description": "The date and time when the visitor entered the library.",
+          "format": "date-time"
+        },
+        "purposeId": {
+          "type": "string",
+          "description": "Reference to the VisitPurpose entity describing why the visitor entered. (Relationship: VisitPurpose 1:N LibraryVisit)"
+        }
+      },
+      "required": [
+        "id",
+        "visitorId",
+        "entryDateTime",
+        "purposeId"
+      ]
     }
   },
   "auth": {
-    "providers": ["password", "anonymous"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/visitorLogs/{logId}": {
-      "schema": "VisitorLog",
-      "description": "Collection of all library entry logs."
-    },
-    "/registeredVisitors/{visitorId}": {
-      "schema": "RegisteredVisitor",
-      "description": "Database of authorized students and faculty."
-    },
-    "/roles_admin/{uid}": {
-      "schema": "AdminRole",
-      "description": "Registry of authorized library administrators."
-    }
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profiles, including their role (visitor/admin) and block status. This path uses path-based ownership, where the 'userId' matches the authenticated user's UID. Includes denormalized 'role' and 'isBlocked' fields for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to Firebase Authentication UID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/visit_purposes/{visitPurposeId}",
+        "definition": {
+          "entityName": "VisitPurpose",
+          "schema": {
+            "$ref": "#/backend/entities/VisitPurpose"
+          },
+          "description": "Contains pre-defined categories for visitors' reasons for entering the library. This is a global, static collection accessible to all authenticated users for reading, and modifiable by administrators.",
+          "params": [
+            {
+              "name": "visitPurposeId",
+              "description": "The unique identifier for a specific visit purpose."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/library_visits/{libraryVisitId}",
+        "definition": {
+          "entityName": "LibraryVisit",
+          "schema": {
+            "$ref": "#/backend/entities/LibraryVisit"
+          },
+          "description": "Records individual library visits. Stored as a top-level collection to facilitate global queries by administrators for reporting and statistics. Includes denormalized 'visitorId' for authorization independence during document creation by the visitor.",
+          "params": [
+            {
+              "name": "libraryVisitId",
+              "description": "The unique identifier for a specific library visit record."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure for NEU ScholarFlow prioritizes Authorization Independence and Structural Segregation to ensure secure, scalable, and debuggable security rules. Each major entity—UserProfile, VisitPurpose, and LibraryVisit—is managed in its own top-level collection, adhering to the principle that all documents within a collection should share a homogeneous security posture.\n\n1.  \"/users/{userId}\": This collection stores `UserProfile` documents. It leverages Path-Based ownership, where each `userId` document corresponds to `request.auth.uid`. Authorization is independent because the user's `role` (admin/visitor) and `isBlocked` status are stored directly within their `UserProfile` document. This allows security rules to check `request.auth.uid == userId` for self-access and query `resource.data.role` or `resource.data.isBlocked` without requiring expensive `get()` calls to parent documents or external user data, simplifying rules and ensuring atomic operations.\n\n2.  \"/visit_purposes/{visitPurposeId}\": This collection holds `VisitPurpose` documents. It functions as a global lookup table. Its security posture is homogeneous: read-only for all authenticated users (visitors and admins alike) to facilitate visit purpose selection, and read/write access for administrators to manage the list of available purposes. Authorization independence is inherent as its access doesn't depend on any other collection's data.\n\n3.  \"/library_visits/{libraryVisitId}\": This collection stores `LibraryVisit` records. To support the critical administrative requirement of monitoring *all* visitors for dashboard statistics and reports, `LibraryVisit` documents are stored in a top-level collection rather than as a subcollection under `/users/{userId}`. This ensures that administrators can perform efficient global queries (QAPs) across all visits (e.g., `where('entryDateTime', '>=', start).where('entryDateTime', '<=', end)`) without relying on expensive collection group queries or complex rule logic to 'gather' visits from multiple user subcollections.\n    Authorization independence for `LibraryVisit` creation is achieved by denormalizing the `visitorId` directly into each `LibraryVisit` document. This allows the security rules to verify `request.auth.uid == resource.data.visitorId` during creation, making the authorization check self-contained for the specific `LibraryVisit` document being created. While checking if the *visitor themselves* is blocked would still involve a `get()` on the *current user's profile* (`/users/$(request.auth.uid)`), this is an acceptable and standard practice for checking the actor's own permissions, rather than a hierarchical dependency on a parent document of the `LibraryVisit` itself.\n\nThis design effectively supports QAPs by allowing direct global queries for `/visit_purposes` and `/library_visits` for appropriate roles, and direct `uid`-based lookups for `/users` documents, avoiding rules that act as filters and simplifying client-side data retrieval."
   }
 }
