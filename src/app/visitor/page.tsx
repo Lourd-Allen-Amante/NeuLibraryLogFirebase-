@@ -62,6 +62,11 @@ export default function VisitorCheckIn() {
       return;
     }
 
+    if (!db) {
+      toast({ title: "Database not ready", variant: "destructive" });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -89,7 +94,7 @@ export default function VisitorCheckIn() {
       if (visitorData.isBlocked) {
         toast({
           title: "Access Restricted",
-          description: "This account is currently blocked. Please contact Library Admin.",
+          description: "This account is currently blocked.",
           variant: "destructive",
         });
         setIsProcessing(false);
@@ -102,7 +107,7 @@ export default function VisitorCheckIn() {
       console.error("Verification Error:", error);
       toast({
         title: "System Error",
-        description: "Unable to verify registration at this time.",
+        description: "Unable to verify registration.",
         variant: "destructive",
       });
     } finally {
@@ -115,6 +120,8 @@ export default function VisitorCheckIn() {
       toast({ title: "Please select a purpose", variant: "destructive" });
       return;
     }
+
+    if (!db) return;
 
     setIsProcessing(true);
     try {

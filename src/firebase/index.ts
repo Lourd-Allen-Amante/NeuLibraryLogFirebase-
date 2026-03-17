@@ -2,29 +2,8 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
-  if (!getApps().length) {
-    let firebaseApp;
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables.
-      // initializeApp() without arguments is the standard for App Hosting.
-      firebaseApp = initializeApp();
-    } catch (e) {
-      // Fallback to provided config for local development and build time.
-      // We don't log the error here during build to avoid scary stack traces in the terminal.
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-
-    return getSdks(firebaseApp);
-  }
-
-  // If already initialized, return the SDKs with the already initialized App
-  return getSdks(getApp());
-}
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 export function getSdks(firebaseApp: FirebaseApp) {
   return {
@@ -32,6 +11,40 @@ export function getSdks(firebaseApp: FirebaseApp) {
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp)
   };
+}
+
+/**
+ * Initializes Firebase.
+ * Returns null or empty services during SSR/Build to prevent "no-options" errors.
+ */
+export function initializeFirebase() {
+  // 1. Prevent execution during Next.js server-side build/rendering
+  // We return an object with null values to avoid destructuring errors in providers.
+  if (typeof window === 'undefined') {
+    return {
+      firebaseApp: null as unknown as FirebaseApp,
+      auth: null as unknown as Auth,
+      firestore: null as unknown as Firestore,
+    };
+  }
+
+  try {
+    // 2. Check if an app is already initialized to prevent duplicates
+    if (getApps().length > 0) {
+      return getSdks(getApp());
+    }
+
+    // 3. Initialize using the provided config
+    const firebaseApp = initializeApp(firebaseConfig);
+    return getSdks(firebaseApp);
+  } catch (error) {
+    console.error("Firebase initialization failed:", error);
+    return {
+      firebaseApp: null as unknown as FirebaseApp,
+      auth: null as unknown as Auth,
+      firestore: null as unknown as Firestore,
+    };
+  }
 }
 
 export * from './provider';

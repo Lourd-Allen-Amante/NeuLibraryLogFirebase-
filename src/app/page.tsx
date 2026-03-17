@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -34,7 +33,6 @@ export default function LandingPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Authorized Admin Emails (including variants/typos found in setup)
   const authorizedEmails = [
     'jcesperanza@neu.edu.ph',
     'jcezperanza@neu.edu.ph',
@@ -43,7 +41,6 @@ export default function LandingPage() {
     'neulibrarian@neu.edu.ph'
   ];
 
-  // Specific Greeting for Authorized Admins
   useEffect(() => {
     if (!user?.email) return;
     const emailLower = user.email.toLowerCase();
@@ -58,11 +55,10 @@ export default function LandingPage() {
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email || !password || !auth) return;
 
     setIsLoggingIn(true);
     try {
-      // Use trim() and toLowerCase() for robustness
       await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       
       toast({
@@ -76,7 +72,7 @@ export default function LandingPage() {
       let message = "Invalid email or password.";
       
       if (error.code === 'auth/invalid-credential') {
-        message = "Access Denied: Please check your credentials. Ensure 'Email/Password' is enabled in Firebase and the user exists.";
+        message = "Access Denied: Please check your credentials.";
       } else if (error.code === 'auth/user-not-found') {
         message = "No account found with this email.";
       } else if (error.code === 'auth/wrong-password') {
@@ -96,6 +92,7 @@ export default function LandingPage() {
   };
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     toast({
       title: "Signed Out",
@@ -105,7 +102,6 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col font-body overflow-hidden">
-      {/* Background Layer */}
       <div className="absolute inset-0 z-0">
         {libraryBg?.imageUrl && (
           <Image 
@@ -119,7 +115,6 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[#0a1f16]/75 backdrop-blur-[2px]"></div>
       </div>
 
-      {/* Header */}
       <header className="relative z-20 p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
           {neuLogo?.imageUrl && (
@@ -155,7 +150,6 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4">
         <div className="text-center mb-12 space-y-4">
           <h1 className="text-5xl md:text-7xl font-headline font-bold text-white tracking-tight drop-shadow-lg">
@@ -167,7 +161,6 @@ export default function LandingPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-          {/* Visitor Terminal Card */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <DoorOpen className="h-32 w-32 text-[#1B4332]" />
@@ -191,7 +184,6 @@ export default function LandingPage() {
             </CardContent>
           </Card>
 
-          {/* Admin Console Card */}
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <ShieldCheck className="h-32 w-32 text-[#1B4332]" />
@@ -227,13 +219,8 @@ export default function LandingPage() {
             </CardContent>
           </Card>
         </div>
-
-        <p className="mt-8 text-emerald-200 text-sm font-medium animate-pulse">
-          Terminal open for all students. Admin login required for dashboard.
-        </p>
       </main>
 
-      {/* Login Dialog */}
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
           <div className="bg-[#1B4332] p-8 text-white text-center">

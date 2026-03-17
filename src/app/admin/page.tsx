@@ -119,7 +119,6 @@ export default function AdminDashboard() {
   const [formCollege, setFormCollege] = useState('');
   const [formType, setFormType] = useState('Student');
 
-  // Initialize date range in useEffect to avoid hydration mismatch
   useEffect(() => {
     setDateRange({
       from: subDays(new Date(), 7),
@@ -127,13 +126,13 @@ export default function AdminDashboard() {
     });
   }, []);
 
-  const adminRef = useMemoFirebase(() => authUser ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
+  const adminRef = useMemoFirebase(() => (db && authUser) ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRef);
 
-  const logsQuery = useMemoFirebase(() => collection(db, 'visitorLogs'), [db]);
+  const logsQuery = useMemoFirebase(() => db ? collection(db, 'visitorLogs') : null, [db]);
   const { data: logs, isLoading: isLogsLoading } = useCollection(logsQuery);
 
-  const registeredVisitorsQuery = useMemoFirebase(() => collection(db, 'registeredVisitors'), [db]);
+  const registeredVisitorsQuery = useMemoFirebase(() => db ? collection(db, 'registeredVisitors') : null, [db]);
   const { data: allVisitors, isLoading: isVisitorsLoading } = useCollection(registeredVisitorsQuery);
 
   const neuLogo = PlaceHolderImages.find(img => img.id === 'neu-logo');
@@ -320,7 +319,7 @@ export default function AdminDashboard() {
   };
 
   const handleSchoolIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, ''); // Only digits
+    let value = e.target.value.replace(/\D/g, '');
     if (value.length > 10) value = value.slice(0, 10);
     
     let formatted = value;
@@ -369,15 +368,6 @@ export default function AdminDashboard() {
         <p className="text-muted-foreground mt-2 max-w-sm mx-auto">
           You do not have administrative privileges. Please sign in with an authorized NEU account.
         </p>
-        
-        <div className="mt-8 p-4 bg-rose-50 border border-rose-100 rounded-xl flex items-start gap-3 text-left max-w-md mx-auto">
-          <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-rose-800 uppercase tracking-wider mb-1">Debug Session Info</p>
-            <p className="text-sm text-rose-700">Logged in as: <span className="font-bold underline">{authUser?.email || 'Guest (Anonymous)'}</span></p>
-          </div>
-        </div>
-
         <Link href="/"><Button className="mt-8 bg-[#1B4332] h-12 px-8">Return to Portal</Button></Link>
       </div>
     );
@@ -484,7 +474,6 @@ export default function AdminDashboard() {
               <Card className="border-emerald-100 shadow-sm bg-emerald-50"><CardHeader className="pb-2"><CardDescription className="text-[10px] font-bold uppercase text-emerald-800/60">Primary Activity</CardDescription><CardTitle className="text-lg font-bold text-[#1B4332] truncate">{stats.topPurpose}</CardTitle></CardHeader></Card>
             </div>
 
-            {/* AI Insights Section */}
             <Card className="border-emerald-200 shadow-md bg-white overflow-hidden">
               <CardHeader className="bg-emerald-50/50 flex flex-row items-center justify-between py-4">
                 <div className="flex items-center gap-2">
@@ -514,7 +503,7 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground italic">Click the button above to generate a natural language summary of current trends.</p>
+                    <p className="text-sm text-muted-foreground italic">Click the button above to generate a summary of current trends.</p>
                   </div>
                 )}
               </CardContent>
@@ -657,6 +646,7 @@ export default function AdminDashboard() {
                         <TableCell><Badge className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full", visitor.isBlocked ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600")}>{visitor.isBlocked ? "BLOCKED" : "ACTIVE"}</Badge></TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" className={cn("text-[10px] font-bold h-7 px-4 rounded-md", visitor.isBlocked ? "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" : "text-rose-600 hover:text-rose-700 hover:bg-rose-50")} onClick={() => {
+                            if (!db) return;
                             const visitorRef = doc(db, 'registeredVisitors', visitor.id);
                             updateDocumentNonBlocking(visitorRef, { isBlocked: !visitor.isBlocked });
                             toast({ title: !visitor.isBlocked ? "Visitor Blocked" : "Visitor Restored" });
@@ -675,6 +665,7 @@ export default function AdminDashboard() {
                 <CardHeader className="bg-emerald-50 border-b border-emerald-100"><CardTitle className="text-md font-bold text-emerald-900">New Registration</CardTitle></CardHeader>
                 <form onSubmit={(e) => {
                   e.preventDefault();
+                  if (!db) return;
                   if (!/^\d{2}-\d{5}-\d{3}$/.test(formSchoolId)) { toast({ title: "ID Format Error", description: "Format must be 00-00000-000", variant: "destructive" }); return; }
                   const newRef = doc(collection(db, 'registeredVisitors'));
                   setDoc(newRef, { id: newRef.id, name: formName, schoolId: formSchoolId, email: formEmail, collegeDepartment: formCollege, visitorType: formType, isBlocked: false });
