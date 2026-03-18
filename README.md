@@ -10,6 +10,12 @@ The following emails are pre-authorized for Admin Console access:
 - `lourdallen.amante@neu.edu.ph` 
 - `neulibrarian@neu.edu.ph`
 
+### Authorized Students
+The following student id are pre-authorized for Visitor access:
+- `24-10473-547`
+- `23-23333-233`
+- `45-12121-211`
+
 ## Features
 - **Visitor Terminal**: Secure check-in for registered students with real-time verification and block-list checks. Supports both Institutional ID (00-00000-000) and NEU Email identification.
 - **Admin Console**: Comprehensive dashboard for library administrators.
