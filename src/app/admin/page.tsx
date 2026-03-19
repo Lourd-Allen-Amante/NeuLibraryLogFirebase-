@@ -84,7 +84,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { DateRange } from "react-day-picker";
 import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
