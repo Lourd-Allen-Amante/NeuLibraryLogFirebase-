@@ -1,13 +1,14 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, KeyRound, Mail, UserCheck, ChevronRight } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, UserCheck, ChevronRight, ShieldAlert } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -27,7 +28,6 @@ export default function LandingPage() {
 
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
 
   const authorizedAdmins = [
     { name: 'JC Esperanza', email: 'jcesperanza@neu.edu.ph' },
@@ -35,65 +35,46 @@ export default function LandingPage() {
     { name: 'Library Admin', email: 'neulibrarian@neu.edu.ph' }
   ];
 
-  // Default password for demo/prototype accounts
-  const DEFAULT_PASSWORD = 'password123';
-
-  const handleAdminSelect = async (email: string) => {
+  const handleGoogleLogin = async () => {
     if (!auth) return;
 
-    setSelectedEmail(email);
     setIsLoggingIn(true);
-    
+    const provider = new GoogleAuthProvider();
+    // Optional: prompt for account selection every time for better terminal UX
+    provider.setCustomParameters({ prompt: 'select_account' });
+
     try {
-      // Attempt to sign in with the selected email and the default prototype password
-      await signInWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user.email?.toLowerCase();
       
-      toast({
-        title: "Access Granted",
-        description: `Welcome back, ${email.split('@')[0]}!`,
-      });
-      setIsLoginDialogOpen(false);
-    } catch (error: any) {
-      console.log("Auth attempt failed, checking code:", error.code);
+      const isAuthorized = authorizedAdmins.some(admin => admin.email.toLowerCase() === email);
       
-      // auth/invalid-credential is the generic code for "user not found" or "wrong password" in newer Firebase SDKs
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        try {
-          // If the user doesn't exist, try to create the account automatically for the prototype
-          await createUserWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
-          toast({
-            title: "Account Initialized",
-            description: `Admin access configured for ${email}.`,
-          });
-          setIsLoginDialogOpen(false);
-        } catch (createError: any) {
-          console.error("Auto-registration error:", createError);
-          
-          if (createError.code === 'auth/email-already-in-use') {
-            toast({
-              variant: "destructive",
-              title: "Access Denied",
-              description: "Account exists with a different password. Please check credentials or reset password in Firebase Console.",
-            });
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Setup Failed",
-              description: "Could not initialize admin account. Please contact IT support.",
-            });
-          }
-        }
+      if (!isAuthorized) {
+        // Immediately sign out unauthorized users
+        await signOut(auth);
+        toast({
+          variant: "destructive",
+          title: "Access Denied",
+          description: "This Google account is not on the authorized administrative list.",
+        });
       } else {
-        console.error("Auth error:", error);
+        toast({
+          title: "Access Granted",
+          description: `Welcome back, ${result.user.displayName || email}!`,
+        });
+        setIsLoginDialogOpen(false);
+      }
+    } catch (error: any) {
+      console.error("Google Auth error:", error);
+      if (error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",
           title: "Authentication Failed",
-          description: error.message || "An unexpected error occurred during login.",
+          description: error.message || "An unexpected error occurred during Google login.",
         });
       }
     } finally {
       setIsLoggingIn(false);
-      setSelectedEmail(null);
     }
   };
 
@@ -141,7 +122,7 @@ export default function LandingPage() {
           {user && !user.isAnonymous ? (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-white text-[10px] font-bold uppercase tracking-wider opacity-60">Session Active</p>
+                <p className="text-white text-[10px] font-bold uppercase tracking-wider opacity-60">Admin Session</p>
                 <p className="text-white text-xs font-bold">{user.email}</p>
               </div>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={handleLogout}>
@@ -149,7 +130,7 @@ export default function LandingPage() {
               </Button>
             </div>
           ) : (
-            <Button onClick={() => setIsLoginDialogOpen(true)} disabled={isUserLoading} className="bg-[#1B4332] border border-emerald-700 hover:bg-[#2D6A4F] text-white font-bold rounded-full px-6">
+            <Button onClick={() => setIsLoginDialogOpen(true)} disabled={isUserLoading} className="bg-[#1B4332] border border-emerald-700 hover:bg-[#2D6A4F] text-white font-bold rounded-full px-6 shadow-xl transition-all hover:scale-105">
               <LogIn className="mr-2 h-4 w-4" /> Admin Access
             </Button>
           )}
@@ -232,37 +213,49 @@ export default function LandingPage() {
           <div className="bg-[#1B4332] p-8 text-white text-center">
             <DialogTitle className="text-2xl font-headline font-bold">Admin Authentication</DialogTitle>
             <DialogDescription className="text-emerald-100/60 mt-1">
-              Select an authorized account to continue
+              Secure Google Sign-In for Institutional Access
             </DialogDescription>
           </div>
-          <div className="p-6 bg-white space-y-3">
-            <div className="grid gap-3">
-              {authorizedAdmins.map((admin) => (
-                <Button
-                  key={admin.email}
-                  variant="outline"
-                  className="h-auto py-4 px-6 flex items-center justify-between group hover:border-[#1B4332] hover:bg-emerald-50 rounded-2xl transition-all border-emerald-100"
-                  disabled={isLoggingIn}
-                  onClick={() => handleAdminSelect(admin.email)}
-                >
-                  <div className="flex items-center gap-4 text-left">
-                    <div className="bg-emerald-100 p-2 rounded-xl group-hover:bg-[#1B4332] transition-colors">
-                      <UserCheck className="h-5 w-5 text-[#1B4332] group-hover:text-white" />
+          <div className="p-8 bg-white space-y-6">
+            <Button
+              onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
+              className="w-full h-14 bg-white border border-emerald-100 text-emerald-900 hover:bg-emerald-50 rounded-2xl shadow-sm flex items-center justify-center gap-3 transition-all"
+            >
+              {isLoggingIn ? (
+                <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-5 w-5" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z" fill="#EA4335"/>
+                </svg>
+              )}
+              <span className="font-bold">Continue with Google</span>
+            </Button>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/40 text-center">Authorized Personnel</p>
+              <div className="grid gap-2">
+                {authorizedAdmins.map((admin) => (
+                  <div
+                    key={admin.email}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-emerald-50 bg-emerald-50/20"
+                  >
+                    <div className="bg-emerald-100 p-2 rounded-lg">
+                      <UserCheck className="h-3 w-3 text-[#1B4332]" />
                     </div>
                     <div>
-                      <p className="font-bold text-[#1B4332] text-sm">{admin.name}</p>
-                      <p className="text-[10px] text-emerald-800/60 font-mono">{admin.email}</p>
+                      <p className="font-bold text-[#1B4332] text-[10px] leading-none">{admin.name}</p>
+                      <p className="text-[9px] text-emerald-800/60 font-mono mt-1">{admin.email}</p>
                     </div>
                   </div>
-                  {isLoggingIn && selectedEmail === admin.email ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-emerald-200 group-hover:text-[#1B4332] transition-colors" />
-                  )}
-                </Button>
-              ))}
+                ))}
+              </div>
             </div>
-            <p className="text-[9px] text-center text-emerald-800/30 font-mono uppercase tracking-widest pt-4">
+
+            <p className="text-[9px] text-center text-emerald-800/30 font-mono uppercase tracking-widest pt-2">
               Institutional Security Policy • Phase 1
             </p>
           </div>
