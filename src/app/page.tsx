@@ -8,7 +8,7 @@ import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, 
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -46,7 +46,7 @@ export default function LandingPage() {
     setIsLoggingIn(true);
     
     try {
-      // Attempt to sign in with the selected email and the default prototype password
+      // First, attempt to sign in
       await signInWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
       
       toast({
@@ -55,12 +55,31 @@ export default function LandingPage() {
       });
       setIsLoginDialogOpen(false);
     } catch (error: any) {
-      console.error("Auth error:", error);
-      toast({
-        variant: "destructive",
-        title: "Authentication Failed",
-        description: "Could not auto-login with this account. Please ensure the account exists with the default password.",
-      });
+      // If the user doesn't exist, create the account automatically for the prototype
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        try {
+          await createUserWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
+          toast({
+            title: "Account Initialized",
+            description: `Admin access configured for ${email}.`,
+          });
+          setIsLoginDialogOpen(false);
+        } catch (createError: any) {
+          console.error("Auto-registration error:", createError);
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "Could not initialize admin account. Please contact IT support.",
+          });
+        }
+      } else {
+        console.error("Auth error:", error);
+        toast({
+          variant: "destructive",
+          title: "Authentication Failed",
+          description: error.message || "An unexpected error occurred during login.",
+        });
+      }
     } finally {
       setIsLoggingIn(false);
       setSelectedEmail(null);
