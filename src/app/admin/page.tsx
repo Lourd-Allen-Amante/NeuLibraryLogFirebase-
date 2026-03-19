@@ -97,6 +97,7 @@ const CHART_COLORS = [
   "hsl(153 10% 80%)"
 ];
 
+// REQUESTED: Limit each page to 12 entries
 const ITEMS_PER_PAGE = 12;
 
 export default function AdminDashboard() {
@@ -112,6 +113,7 @@ export default function AdminDashboard() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Time Selection State
   const [dateFilterMode, setDateFilterMode] = useState<'preset' | 'custom'>('preset');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -186,7 +188,7 @@ export default function AdminDashboard() {
       .sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
   }, [filteredLogs, searchQuery]);
 
-  // Paginated data
+  // Paginated data logic
   const totalPages = Math.ceil(sortedAndSearchedLogs.length / ITEMS_PER_PAGE);
   const paginatedLogs = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
