@@ -28,7 +28,7 @@ export default function LandingPage() {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Authorized administrators list (internal verification only)
+  // Authorized administrators list (Internal verification only)
   const authorizedAdmins = [
     'jcesperanza@neu.edu.ph',
     'lourdallen.amante@neu.edu.ph',
@@ -58,7 +58,7 @@ export default function LandingPage() {
       } else {
         toast({
           title: "Access Granted",
-          description: `Welcome back, ${result.user.displayName || email}!`,
+          description: `Welcome back!`,
         });
         setIsLoginDialogOpen(false);
       }
@@ -67,8 +67,6 @@ export default function LandingPage() {
         setIsLoggingIn(false);
         return;
       }
-
-      console.error("Google Auth error:", error);
       toast({
         variant: "destructive",
         title: "Authentication Failed",
