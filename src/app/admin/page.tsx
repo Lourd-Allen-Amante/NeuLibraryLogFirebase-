@@ -17,7 +17,9 @@ import {
   Calendar as CalendarIcon,
   AlertCircle,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -82,7 +84,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { parseISO, format, isSameDay, isWithinInterval, startOfWeek, endOfWeek, subDays, eachDayOfInterval } from 'date-fns';
 import { VISIT_PURPOSES } from '@/lib/types';
-import jsPDF from 'jspdf';
+import jsPDF from 'jsPDF';
 import autoTable from 'jspdf-autotable';
 import { DateRange } from "react-day-picker";
 import { adminVisitorTrendSummaries } from '@/ai/flows/admin-visitor-trend-summaries';
@@ -95,6 +97,8 @@ const CHART_COLORS = [
   "hsl(153 10% 80%)"
 ];
 
+const ITEMS_PER_PAGE = 12;
+
 export default function AdminDashboard() {
   const { toast } = useToast();
   const db = useFirestore();
@@ -104,6 +108,9 @@ export default function AdminDashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
   
   const [dateFilterMode, setDateFilterMode] = useState<'preset' | 'custom'>('preset');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
@@ -125,6 +132,11 @@ export default function AdminDashboard() {
       to: new Date(),
     });
   }, []);
+
+  // Reset pagination when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, dateFilterMode, dateFilter, dateRange, purposeFilter, collegeFilter, typeFilter]);
 
   const adminRef = useMemoFirebase(() => (db && authUser) ? doc(db, 'roles_admin', authUser.uid) : null, [db, authUser]);
   const { data: adminRole, isLoading: isAdminRoleLoading } = useDoc(adminRef);
@@ -165,9 +177,21 @@ export default function AdminDashboard() {
       });
   }, [logs, dateFilterMode, dateFilter, dateRange, purposeFilter, collegeFilter, typeFilter]);
 
-  const sortedLogs = useMemo(() => {
-    return [...filteredLogs].sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
-  }, [filteredLogs]);
+  const sortedAndSearchedLogs = useMemo(() => {
+    return [...filteredLogs]
+      .filter(l => 
+        (l.visitorName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+        (l.schoolId || '').includes(searchQuery)
+      )
+      .sort((a, b) => parseISO(b.entryDateTime).getTime() - parseISO(a.entryDateTime).getTime());
+  }, [filteredLogs, searchQuery]);
+
+  // Paginated data
+  const totalPages = Math.ceil(sortedAndSearchedLogs.length / ITEMS_PER_PAGE);
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return sortedAndSearchedLogs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [sortedAndSearchedLogs, currentPage]);
 
   const stats = useMemo(() => {
     const total = filteredLogs.length;
@@ -338,8 +362,6 @@ export default function AdminDashboard() {
     
     const superusers = [
       'jcesperanza@neu.edu.ph',
-      'jcezperanza@neu.edu.ph',
-      'jceperanza@neu.edu.ph',
       'lourdallen.amante@neu.edu.ph',
       'neulibrarian@neu.edu.ph'
     ];
@@ -569,7 +591,7 @@ export default function AdminDashboard() {
             <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
               <CardTitle className="text-lg font-bold text-[#1B4332]">Visitor Logs</CardTitle>
               <div className="flex items-center gap-4">
-                <Badge variant="outline" className="text-emerald-700 border-emerald-100 px-3">{sortedLogs.length} Total Visits</Badge>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-100 px-3">{sortedAndSearchedLogs.length} Total Visits</Badge>
                 <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search name or ID..." className="pl-9 h-9 w-64 text-xs rounded-lg border-emerald-100" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -598,10 +620,7 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedLogs.filter(l => 
-                    (l.visitorName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
-                    (l.schoolId || '').includes(searchQuery)
-                  ).map((log) => (
+                  {paginatedLogs.map((log) => (
                     <TableRow key={log.id} className="hover:bg-emerald-50/10 border-emerald-50 group">
                       <TableCell className="font-bold text-[#1B4332]">{log.visitorName || 'N/A'}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">{log.schoolId || 'N/A'}</TableCell>
@@ -611,10 +630,42 @@ export default function AdminDashboard() {
                       <TableCell className="text-[10px] font-mono text-muted-foreground text-right">{format(parseISO(log.entryDateTime), 'MMM d, HH:mm')}</TableCell>
                     </TableRow>
                   ))}
-                  {sortedLogs.length === 0 && <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No logs found matching your criteria.</TableCell></TableRow>}
+                  {paginatedLogs.length === 0 && <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">No logs found matching your criteria.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </div>
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-emerald-50 bg-emerald-50/10">
+                <div className="text-xs text-muted-foreground font-medium">
+                  Showing <span className="text-[#1B4332] font-bold">{Math.min(sortedAndSearchedLogs.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> to <span className="text-[#1B4332] font-bold">{Math.min(sortedAndSearchedLogs.length, currentPage * ITEMS_PER_PAGE)}</span> of <span className="text-[#1B4332] font-bold">{sortedAndSearchedLogs.length}</span> entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 border-emerald-100 text-emerald-700 hover:bg-emerald-50" 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="text-xs font-bold text-emerald-900 px-2">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 border-emerald-100 text-emerald-700 hover:bg-emerald-50" 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
