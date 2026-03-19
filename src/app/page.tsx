@@ -40,7 +40,7 @@ export default function LandingPage() {
 
     setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
-    // Optional: prompt for account selection every time for better terminal UX
+    // Prompt for account selection every time for better terminal UX
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
@@ -65,14 +65,20 @@ export default function LandingPage() {
         setIsLoginDialogOpen(false);
       }
     } catch (error: any) {
-      console.error("Google Auth error:", error);
-      if (error.code !== 'auth/popup-closed-by-user') {
-        toast({
-          variant: "destructive",
-          title: "Authentication Failed",
-          description: error.message || "An unexpected error occurred during Google login.",
-        });
+      // Gracefully handle user cancellation (closing the popup)
+      if (error.code === 'auth/popup-closed-by-user') {
+        // Do nothing, this is an intentional user action
+        setIsLoggingIn(false);
+        return;
       }
+
+      // Log other unexpected errors
+      console.error("Google Auth error:", error);
+      toast({
+        variant: "destructive",
+        title: "Authentication Failed",
+        description: error.message || "An unexpected error occurred during Google login.",
+      });
     } finally {
       setIsLoggingIn(false);
     }
