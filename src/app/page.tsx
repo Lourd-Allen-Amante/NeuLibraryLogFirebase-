@@ -30,9 +30,9 @@ export default function LandingPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const authorizedAdmins = [
-    { name: 'JC Esperanza', email: 'jcesperanza@neu.edu.ph' },
-    { name: 'Lourdallen Amante', email: 'lourdallen.amante@neu.edu.ph' },
-    { name: 'Library Admin', email: 'neulibrarian@neu.edu.ph' }
+    'jcesperanza@neu.edu.ph',
+    'lourdallen.amante@neu.edu.ph',
+    'neulibrarian@neu.edu.ph'
   ];
 
   const handleGoogleLogin = async () => {
@@ -40,17 +40,15 @@ export default function LandingPage() {
 
     setIsLoggingIn(true);
     const provider = new GoogleAuthProvider();
-    // Prompt for account selection every time for better terminal UX
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email?.toLowerCase();
       
-      const isAuthorized = authorizedAdmins.some(admin => admin.email.toLowerCase() === email);
+      const isAuthorized = authorizedAdmins.some(adminEmail => adminEmail.toLowerCase() === email);
       
       if (!isAuthorized) {
-        // Immediately sign out unauthorized users
         await signOut(auth);
         toast({
           variant: "destructive",
@@ -65,14 +63,11 @@ export default function LandingPage() {
         setIsLoginDialogOpen(false);
       }
     } catch (error: any) {
-      // Gracefully handle user cancellation (closing the popup)
       if (error.code === 'auth/popup-closed-by-user') {
-        // Do nothing, this is an intentional user action
         setIsLoggingIn(false);
         return;
       }
 
-      // Log other unexpected errors
       console.error("Google Auth error:", error);
       toast({
         variant: "destructive",
@@ -131,6 +126,11 @@ export default function LandingPage() {
                 <p className="text-white text-[10px] font-bold uppercase tracking-wider opacity-60">Admin Session</p>
                 <p className="text-white text-xs font-bold">{user.email}</p>
               </div>
+              <Link href="/admin">
+                <Button variant="ghost" className="text-white hover:bg-white/10 h-10 px-4 text-xs font-bold border border-white/20 mr-2 rounded-full">
+                  Console
+                </Button>
+              </Link>
               <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -153,8 +153,8 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
+        <div className="flex justify-center w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden w-full">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
               <DoorOpen className="h-32 w-32 text-[#1B4332]" />
             </div>
@@ -174,41 +174,6 @@ export default function LandingPage() {
                   Launch Terminal <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">
-              <ShieldCheck className="h-32 w-32 text-[#1B4332]" />
-            </div>
-            <CardHeader className="text-center pb-2 pt-10">
-              <div className="mx-auto bg-emerald-50 p-6 rounded-3xl w-fit mb-6 shadow-inner">
-                <ShieldCheck className="h-14 w-14 text-[#1B4332]" />
-              </div>
-              <CardTitle className="text-3xl font-headline font-bold text-[#1B4332]">Admin Console</CardTitle>
-              <CardDescription className="text-lg">Analytics & Audit</CardDescription>
-            </CardHeader>
-            <CardContent className="p-8">
-              {user && !user.isAnonymous ? (
-                <Link href="/admin">
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="w-full h-16 text-xl font-headline border-2 border-[#1B4332] text-[#1B4332] hover:bg-emerald-50 rounded-2xl"
-                  >
-                    Open Dashboard
-                  </Button>
-                </Link>
-              ) : (
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="w-full h-16 text-xl font-headline border-2 border-[#1B4332] text-[#1B4332] hover:bg-emerald-50 rounded-2xl"
-                  onClick={() => setIsLoginDialogOpen(true)}
-                >
-                  Sign In to Access
-                </Button>
-              )}
             </CardContent>
           </Card>
         </div>
@@ -241,28 +206,8 @@ export default function LandingPage() {
               <span className="font-bold">Continue with Google</span>
             </Button>
 
-            <div className="space-y-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/40 text-center">Authorized Personnel</p>
-              <div className="grid gap-2">
-                {authorizedAdmins.map((admin) => (
-                  <div
-                    key={admin.email}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-emerald-50 bg-emerald-50/20"
-                  >
-                    <div className="bg-emerald-100 p-2 rounded-lg">
-                      <UserCheck className="h-3 w-3 text-[#1B4332]" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-[#1B4332] text-[10px] leading-none">{admin.name}</p>
-                      <p className="text-[9px] text-emerald-800/60 font-mono mt-1">{admin.email}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-[9px] text-center text-emerald-800/30 font-mono uppercase tracking-widest pt-2">
-              Institutional Security Policy • Phase 1
+            <p className="text-[10px] text-center text-emerald-800/30 font-mono uppercase tracking-widest pt-4">
+              Authorized Personnel Only • Secure Access
             </p>
           </div>
         </DialogContent>
