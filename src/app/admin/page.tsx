@@ -160,7 +160,7 @@ export default function AdminDashboard() {
         let dateMatch = true;
         if (dateFilterMode === 'preset') {
           if (dateFilter === 'today') dateMatch = isSameDay(logDate, now);
-          if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: startOfWeek(now), end: endOfWeek(now) });
+          if (dateFilter === 'week') dateMatch = isWithinInterval(logDate, { start: subDays(now, 7), end: now });
           if (dateFilter === 'month') dateMatch = isWithinInterval(logDate, { start: subDays(now, 30), end: now });
         } else if (dateFilterMode === 'custom' && dateRange?.from && dateRange?.to) {
           dateMatch = isWithinInterval(logDate, { start: dateRange.from, end: dateRange.to });
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
       return hours.filter((_, i) => i >= 7 && i <= 20);
     } else {
       if (dateFilterMode === 'preset') {
-        start = dateFilter === 'week' ? startOfWeek(now) : (dateFilter === 'month' ? subDays(now, 30) : subDays(now, 14));
+        start = dateFilter === 'week' ? subDays(now, 7) : (dateFilter === 'month' ? subDays(now, 30) : subDays(now, 14));
         end = now;
       } else {
         start = dateRange?.from || subDays(now, 7);
@@ -444,7 +444,7 @@ export default function AdminDashboard() {
                         <Label className="text-[10px] uppercase font-bold text-emerald-800/60">Quick Select</Label>
                         <Select value={dateFilter} onValueChange={(v: any) => setDateFilter(v)}>
                           <SelectTrigger className="h-9 text-xs border-emerald-100"><SelectValue /></SelectTrigger>
-                          <SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="week">This Week</SelectItem><SelectItem value="month">Last 30 Days</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent>
+                          <SelectContent><SelectItem value="today">Today</SelectItem><SelectItem value="week">Last Week</SelectItem><SelectItem value="month">Last Month</SelectItem><SelectItem value="all">All Time</SelectItem></SelectContent>
                         </Select>
                       </>
                     ) : (
@@ -588,20 +588,69 @@ export default function AdminDashboard() {
 
         {activeTab === 'logs' && (
           <Card className="border-emerald-100 shadow-sm animate-in slide-in-from-bottom-2 duration-500">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-emerald-50">
-              <CardTitle className="text-lg font-bold text-[#1B4332]">Visitor Logs</CardTitle>
-              <div className="flex items-center gap-4">
-                <Badge variant="outline" className="text-emerald-700 border-emerald-100 px-3">{sortedAndSearchedLogs.length} Total Visits</Badge>
-                <div className="relative"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search name or ID..." className="pl-9 h-9 w-64 text-xs rounded-lg border-emerald-100" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} /></div>
+            <CardHeader className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between border-b border-emerald-50">
+              <div className="flex flex-col gap-1">
+                <CardTitle className="text-lg font-bold text-[#1B4332]">Visitor Logs</CardTitle>
+                <Badge variant="outline" className="text-emerald-700 border-emerald-100 px-3 w-fit">{sortedAndSearchedLogs.length} Records Found</Badge>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={dateFilterMode === 'custom' ? 'custom' : dateFilter} 
+                    onValueChange={(v) => {
+                      if (v === 'custom') setDateFilterMode('custom');
+                      else {
+                        setDateFilterMode('preset');
+                        setDateFilter(v as any);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 w-32 text-xs border-emerald-100 bg-white shadow-sm">
+                      <SelectValue placeholder="Time Range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">Last Week</SelectItem>
+                      <SelectItem value="month">Last Month</SelectItem>
+                      <SelectItem value="custom">Custom Range</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {dateFilterMode === 'custom' && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 text-xs border-emerald-100 text-emerald-700 bg-white">
+                          <CalendarIcon className="mr-2 h-3 w-3" />
+                          {dateRange?.from ? format(dateRange.from, "MMM d") : "Start"} - {dateRange?.to ? format(dateRange.to, "MMM d") : "End"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar mode="range" selected={dateRange} onSelect={setDateRange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search name or ID..." 
+                    className="pl-9 h-9 w-48 lg:w-64 text-xs rounded-lg border-emerald-100" 
+                    value={searchQuery} 
+                    onChange={e => setSearchQuery(e.target.value)} 
+                  />
+                </div>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-9 text-xs font-bold border-emerald-100 text-emerald-700 hover:bg-emerald-50" disabled={isExporting}>
-                      {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <FileDown className="mr-2 h-3 w-3" />} Export PDF
+                    <Button variant="outline" className="h-9 text-xs font-bold border-emerald-100 text-emerald-700 hover:bg-emerald-50 shadow-sm" disabled={isExporting}>
+                      {isExporting ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <FileDown className="mr-2 h-3 w-3" />} Export
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={() => handleExportPdf('today')} className="text-xs font-bold cursor-pointer">Today's Logs</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleExportPdf('week')} className="text-xs font-bold cursor-pointer">This Week</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportPdf('week')} className="text-xs font-bold cursor-pointer">Last 7 Days</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleExportPdf('month')} className="text-xs font-bold cursor-pointer">Last 30 Days</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
