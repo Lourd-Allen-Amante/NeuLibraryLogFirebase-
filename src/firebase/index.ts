@@ -14,12 +14,10 @@ export function getSdks(firebaseApp: FirebaseApp) {
 }
 
 /**
- * Initializes Firebase.
- * Returns null or empty services during SSR/Build to prevent "no-options" errors.
+ * Initializes Firebase safely for both Client and Server environments.
  */
 export function initializeFirebase() {
-  // 1. Prevent execution during Next.js server-side build/rendering
-  // We return an object with null values to avoid destructuring errors in providers.
+  // Prevent execution during Next.js server-side build/rendering
   if (typeof window === 'undefined') {
     return {
       firebaseApp: null as unknown as FirebaseApp,
@@ -29,21 +27,23 @@ export function initializeFirebase() {
   }
 
   try {
-    // 2. Check if an app is already initialized to prevent duplicates
     if (getApps().length > 0) {
       return getSdks(getApp());
     }
-
-    // 3. Initialize using the provided config
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   } catch (error) {
-    console.error("Firebase initialization failed:", error);
-    return {
-      firebaseApp: null as unknown as FirebaseApp,
-      auth: null as unknown as Auth,
-      firestore: null as unknown as Firestore,
-    };
+    // Fallback to existing app if initialization fails (e.g. during hot reload)
+    try {
+      return getSdks(getApp());
+    } catch {
+      console.error("Firebase initialization failed:", error);
+      return {
+        firebaseApp: null as unknown as FirebaseApp,
+        auth: null as unknown as Auth,
+        firestore: null as unknown as Firestore,
+      };
+    }
   }
 }
 
