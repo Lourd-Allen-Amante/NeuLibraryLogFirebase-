@@ -28,7 +28,7 @@ export default function LandingPage() {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Authorized administrators list (Hardcoded for security)
+  // Authorized administrators list (Verified privately for security)
   const authorizedAdmins = [
     'jcesperanza@neu.edu.ph',
     'lourdallen.amante@neu.edu.ph',
@@ -151,7 +151,6 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* REQUESTED: Single primary focus on Visitor Terminal */}
         <div className="flex justify-center w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-700">
           <Card className="border-none shadow-2xl hover:translate-y-[-8px] transition-all duration-300 bg-white/95 backdrop-blur-xl rounded-3xl group overflow-hidden w-full">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-125 transition-transform">

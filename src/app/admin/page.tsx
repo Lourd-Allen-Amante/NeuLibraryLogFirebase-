@@ -97,7 +97,6 @@ const CHART_COLORS = [
   "hsl(153 10% 80%)"
 ];
 
-// REQUESTED: Limit each page to 12 entries
 const ITEMS_PER_PAGE = 12;
 
 export default function AdminDashboard() {
@@ -686,7 +685,6 @@ export default function AdminDashboard() {
               </Table>
             </div>
             
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t border-emerald-50 bg-emerald-50/10">
                 <div className="text-xs text-muted-foreground font-medium">
