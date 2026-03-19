@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2, UserCheck, ChevronRight, ShieldAlert } from "lucide-react";
+import { UserCircle, ShieldCheck, LogIn, ArrowRight, DoorOpen, LogOut, Loader2 } from "lucide-react";
 import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useAuth, useUser } from '@/firebase';
@@ -207,7 +207,7 @@ export default function LandingPage() {
             </Button>
 
             <p className="text-[10px] text-center text-emerald-800/30 font-mono uppercase tracking-widest pt-4">
-              Authorized Personnel Only • Secure Access
+              Secure Access • Authorized Personnel Only
             </p>
           </div>
         </DialogContent>
