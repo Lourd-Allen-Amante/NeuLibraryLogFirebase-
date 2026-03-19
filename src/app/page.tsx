@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -46,7 +45,7 @@ export default function LandingPage() {
     setIsLoggingIn(true);
     
     try {
-      // First, attempt to sign in
+      // Attempt to sign in with the selected email and the default prototype password
       await signInWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
       
       toast({
@@ -55,9 +54,12 @@ export default function LandingPage() {
       });
       setIsLoginDialogOpen(false);
     } catch (error: any) {
-      // If the user doesn't exist, create the account automatically for the prototype
+      console.log("Auth attempt failed, checking code:", error.code);
+      
+      // auth/invalid-credential is the generic code for "user not found" or "wrong password" in newer Firebase SDKs
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         try {
+          // If the user doesn't exist, try to create the account automatically for the prototype
           await createUserWithEmailAndPassword(auth, email, DEFAULT_PASSWORD);
           toast({
             title: "Account Initialized",
@@ -66,11 +68,20 @@ export default function LandingPage() {
           setIsLoginDialogOpen(false);
         } catch (createError: any) {
           console.error("Auto-registration error:", createError);
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "Could not initialize admin account. Please contact IT support.",
-          });
+          
+          if (createError.code === 'auth/email-already-in-use') {
+            toast({
+              variant: "destructive",
+              title: "Access Denied",
+              description: "Account exists with a different password. Please check credentials or reset password in Firebase Console.",
+            });
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Setup Failed",
+              description: "Could not initialize admin account. Please contact IT support.",
+            });
+          }
         }
       } else {
         console.error("Auth error:", error);
